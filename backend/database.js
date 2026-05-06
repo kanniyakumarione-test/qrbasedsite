@@ -1,138 +1,84 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
 
-const DB_PATH = path.join(__dirname, 'data', 'prabhu.db');
-const db = new Database(DB_PATH);
+// These will be provided by Vercel environment variables
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
-// Initialize tables
-db.exec(`
-  CREATE TABLE IF NOT EXISTS menu (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    category TEXT NOT NULL,
-    price REAL NOT NULL,
-    available INTEGER DEFAULT 1
-  );
-
-  CREATE TABLE IF NOT EXISTS orders (
-    id TEXT PRIMARY KEY,
-    tableId TEXT NOT NULL,
-    items TEXT NOT NULL,
-    note TEXT,
-    totalAmount REAL NOT NULL,
-    status TEXT DEFAULT 'NEW',
-    createdAt TEXT NOT NULL,
-    updatedAt TEXT NOT NULL
-  );
-`);
-
-// Seed initial menu if empty
-const existingMenu = db.prepare('SELECT COUNT(*) as count FROM menu').get();
-if (existingMenu.count === 0) {
-  const seedMenu = [
-    { id: 'm1', name: 'Paneer Butter Masala', category: 'Main Course', price: 220, available: true },
-    { id: 'm2', name: 'Veg Biryani', category: 'Main Course', price: 180, available: true },
-    { id: 'm3', name: 'Butter Naan', category: 'Breads', price: 40, available: true },
-    { id: 'm4', name: 'Masala Dosa', category: 'South Indian', price: 110, available: true },
-    { id: 'm5', name: 'Gulab Jamun', category: 'Dessert', price: 70, available: true },
-    { id: 'm6', name: 'Fresh Lime Soda', category: 'Beverages', price: 60, available: true }
-  ];
-  const stmt = db.prepare('INSERT INTO menu (id, name, category, price, available) VALUES (?, ?, ?, ?, ?)');
-  seedMenu.forEach(item => stmt.run(item.id, item.name, item.category, item.price, item.available ? 1 : 0));
+if (!supabaseUrl || !supabaseKey) {
+  console.warn('Supabase credentials missing. API will fail until SUPABASE_URL and SUPABASE_ANON_KEY are set in environment variables.');
 }
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Menu operations
-function getMenu(onlyAvailable = true) {
+async function getMenu(onlyAvailable = true) {
+  let query = supabase.from('menu').select('*');
   if (onlyAvailable) {
-    return db.prepare('SELECT * FROM menu WHERE available = 1').all();
+    query = query.eq('available', true);
   }
-  return db.prepare('SELECT * FROM menu').all();
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
 }
 
-function getMenuItem(id) {
-  return db.prepare('SELECT * FROM menu WHERE id = ?').get(id);
+async function getMenuItem(id) {
+  const { data, error } = await supabase.from('menu').select('*').eq('id', id).single();
+  if (error) return null;
+  return data;
 }
 
-function addMenuItem(item) {
-  const stmt = db.prepare('INSERT INTO menu (id, name, category, price, available) VALUES (?, ?, ?, ?, ?)');
-  stmt.run(item.id, item.name, item.category, item.price, item.available ? 1 : 0);
-  return item;
+async function addMenuItem(item) {
+  const { data, error } = await supabase.from('menu').insert([item]).select().single();
+  if (error) throw error;
+  return data;
 }
 
-function updateMenuItem(id, item) {
-  const stmt = db.prepare('UPDATE menu SET name = ?, category = ?, price = ?, available = ? WHERE id = ?');
-  stmt.run(item.name, item.category, item.price, item.available ? 1 : 0, id);
-  return { ...item, id };
+async function updateMenuItem(id, item) {
+  const { data, error } = await supabase.from('menu').update(item).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
 }
 
-function deleteMenuItem(id) {
-  db.prepare('DELETE FROM menu WHERE id = ?').run(id);
+async function deleteMenuItem(id) {
+  const { error } = await supabase.from('menu').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // Order operations
-function getOrders(filters = {}) {
-  let sql = 'SELECT * FROM orders';
-  const params = [];
-  const conditions = [];
+async function getOrders(filters = {}) {
+  let query = supabase.from('orders').select('*').order('createdAt', { ascending: false });
 
   if (filters.tableId) {
-    conditions.push('tableId = ?');
-    params.push(filters.tableId);
+    query = query.eq('tableId', filters.tableId);
   }
 
   if (filters.mode === 'kitchen') {
-    conditions.push("status IN ('NEW', 'PREPARING', 'READY')");
+    query = query.in('status', ['NEW', 'PREPARING', 'READY']);
   }
 
-  if (conditions.length > 0) {
-    sql += ' WHERE ' + conditions.join(' AND ');
-  }
-
-  sql += ' ORDER BY createdAt DESC';
-
-  const rows = db.prepare(sql).all(...params);
-  return rows.map(row => ({
-    ...row,
-    items: JSON.parse(row.items),
-    available: row.available === 1
-  }));
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
 }
 
-function getOrder(id) {
-  const row = db.prepare('SELECT * FROM orders WHERE id = ?').get(id);
-  if (!row) return null;
-  return {
-    ...row,
-    items: JSON.parse(row.items),
-    available: row.available === 1
-  };
+async function getOrder(id) {
+  const { data, error } = await supabase.from('orders').select('*').eq('id', id).single();
+  if (error) return null;
+  return data;
 }
 
-function addOrder(order) {
-  const stmt = db.prepare(`
-    INSERT INTO orders (id, tableId, items, note, totalAmount, status, createdAt, updatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run(
-    order.id,
-    order.tableId,
-    JSON.stringify(order.items),
-    order.note || '',
-    order.totalAmount,
-    order.status,
-    order.createdAt,
-    order.updatedAt
-  );
-  return order;
+async function addOrder(order) {
+  const { data, error } = await supabase.from('orders').insert([order]).select().single();
+  if (error) throw error;
+  return data;
 }
 
-function updateOrderStatus(id, status, updatedAt) {
-  const stmt = db.prepare('UPDATE orders SET status = ?, updatedAt = ? WHERE id = ?');
-  stmt.run(status, updatedAt, id);
+async function updateOrderStatus(id, status, updatedAt) {
+  const { error } = await supabase.from('orders').update({ status, updatedAt }).eq('id', id);
+  if (error) throw error;
 }
 
 module.exports = {
-  db,
   getMenu,
   getMenuItem,
   addMenuItem,
