@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply min-h-screen bg-hotel-sand font-body text-hotel-bark antialiased;
+    background-image:
+      radial-gradient(circle at 0% 0%, rgba(29, 41, 61, 0.12) 0%, transparent 35%),
+      radial-gradient(circle at 88% 10%, rgba(201, 106, 40, 0.24) 0%, transparent 38%),
+      linear-gradient(145deg, #f7efe2 0%, #eef3fb 100%);
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-xl bg-hotel-dusk px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-slate-800;
+  }
+
+  .btn-accent {
+    @apply inline-flex items-center justify-center rounded-xl bg-hotel-clay px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 hover:bg-orange-700;
+  }
+
+  .btn-muted {
+    @apply inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50;
+  }
+
+  .input-base {
+    @apply rounded-xl border border-slate-200 bg-white/90 px-3 py-2 text-sm text-slate-800 outline-none ring-hotel-clay/30 transition focus:ring-4;
+  }
+}

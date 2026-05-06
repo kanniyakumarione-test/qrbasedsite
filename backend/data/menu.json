@@ -1,0 +1,23 @@
+[
+  {
+    "id": "m5",
+    "name": "Gulab Jamun",
+    "category": "Dessert",
+    "price": 70,
+    "available": true
+  },
+  {
+    "id": "m6",
+    "name": "Fresh Lime Soda",
+    "category": "Beverages",
+    "price": 60,
+    "available": true
+  },
+  {
+    "id": "m1777217855036915",
+    "name": "paroota",
+    "category": "food",
+    "price": 12,
+    "available": true
+  }
+]
