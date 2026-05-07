@@ -1,16 +1,12 @@
 const { createClient } = require('@supabase/supabase-js');
 
-// These will be provided by Vercel environment variables
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  // Instead of just a warning, we'll throw a clear error that the API can catch
-  const missingError = 'SUPABASE_URL or SUPABASE_ANON_KEY is missing in environment variables.';
-  console.error(missingError);
+  console.error('SUPABASE_URL or SUPABASE_ANON_KEY is missing in environment variables.');
 }
 
-// We only initialize if we have the keys, otherwise the app will crash with a clear message
 const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
 function checkClient() {
@@ -19,16 +15,15 @@ function checkClient() {
   }
 }
 
-// Menu operations
+// ── Menu operations ──────────────────────────────────────────────────────────
+
 async function getMenu(onlyAvailable = true) {
   checkClient();
   let query = supabase.from('menu').select('*');
-  if (onlyAvailable) {
-    query = query.eq('available', true);
-  }
+  if (onlyAvailable) query = query.eq('available', true);
   const { data, error } = await query;
   if (error) throw error;
-  return data;
+  return data || [];
 }
 
 async function getMenuItem(id) {
@@ -58,13 +53,15 @@ async function deleteMenuItem(id) {
   if (error) throw error;
 }
 
-// Order operations
+// ── Order operations ─────────────────────────────────────────────────────────
+
 async function getOrders(filters = {}) {
   checkClient();
-  let query = supabase.from('orders').select('*').order('createdAt', { ascending: false });
+  // Postgres lowercases unquoted column names, so use lowercase here
+  let query = supabase.from('orders').select('*').order('createdat', { ascending: false });
 
   if (filters.tableId) {
-    query = query.eq('tableId', filters.tableId);
+    query = query.eq('tableid', filters.tableId);
   }
 
   if (filters.mode === 'kitchen') {
@@ -73,7 +70,7 @@ async function getOrders(filters = {}) {
 
   const { data, error } = await query;
   if (error) throw error;
-  return data;
+  return data || [];
 }
 
 async function getOrder(id) {
@@ -92,16 +89,17 @@ async function addOrder(order) {
 
 async function updateOrderStatus(id, status, updatedAt) {
   checkClient();
-  const { error } = await supabase.from('orders').update({ status, updatedAt }).eq('id', id);
+  const { error } = await supabase.from('orders').update({ status, updatedat: updatedAt }).eq('id', id);
   if (error) throw error;
 }
 
-// Table operations
+// ── Table operations ─────────────────────────────────────────────────────────
+
 async function getTables() {
   checkClient();
   const { data, error } = await supabase.from('tables').select('*').order('id');
   if (error) throw error;
-  return data;
+  return data || [];
 }
 
 async function updateTable(id, name) {
