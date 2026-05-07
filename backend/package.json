@@ -2,7 +2,6 @@
   "name": "hotel-qr-backend",
   "version": "1.0.0",
   "private": true,
-  "main": "server.js",
   "dependencies": {
     "@supabase/supabase-js": "^2.43.0"
   }
