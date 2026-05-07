@@ -179,6 +179,19 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ...buildOrderResponse(target), status: newStatus, updatedAt });
     }
 
+    if (method === 'GET' && (pathname === '/api/admin/tables' || pathname === '/admin/tables')) {
+      const tables = await db.getTables();
+      return sendJson(res, 200, tables);
+    }
+
+    const tableMatch = pathname.match(/^\/(api\/admin\/tables|admin\/tables)\/([^\/]+)$/);
+    if (tableMatch && method === 'PUT') {
+      const tableId = tableMatch[2];
+      const payload = await parseBody(req);
+      const updated = await db.updateTable(tableId, payload.name);
+      return sendJson(res, 200, updated);
+    }
+
     return sendJson(res, 404, { error: 'Not found' });
   } catch (error) {
     console.error('API Error:', error);

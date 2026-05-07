@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import Card from '../components/Card';
-import { SERVER_IP } from '../ip-config';
 import { API_BASE_URL } from '../api-config';
 
 const emptyForm = {
@@ -11,24 +10,21 @@ const emptyForm = {
 };
 
 export default function AdminPage() {
-  const [tableCount, setTableCount] = useState(5);
-  const [generatedCount, setGeneratedCount] = useState(5);
+  const [tables, setTables] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState('');
   const [status, setStatus] = useState('');
+  const [tableStatus, setTableStatus] = useState('');
 
+  // 1. Force use window.location.origin for QR codes (No more IP addresses)
   const tableLinks = useMemo(() => {
-    const baseUrl = typeof SERVER_IP !== 'undefined' 
-      ? `http://${SERVER_IP}:5173` 
-      : window.location.origin;
-    return Array.from({ length: Math.max(1, Math.min(300, generatedCount)) }, (_, i) => {
-      const id = i + 1;
-      const tableId = `T${id}`;
-      const url = `${baseUrl}/table/${tableId}`;
-      return { id: tableId, url };
-    });
-  }, [generatedCount]);
+    const baseUrl = window.location.origin;
+    return tables.map((table) => ({
+      ...table,
+      url: `${baseUrl}/table/${table.id}`
+    }));
+  }, [tables]);
 
   async function loadMenu() {
     const response = await fetch(`${API_BASE_URL}/api/admin/menu`);
@@ -36,9 +32,31 @@ export default function AdminPage() {
     setMenuItems(data);
   }
 
+  async function loadTables() {
+    const response = await fetch(`${API_BASE_URL}/api/admin/tables`);
+    const data = await response.json();
+    if (Array.isArray(data)) setTables(data);
+  }
+
   useEffect(() => {
     loadMenu();
+    loadTables();
   }, []);
+
+  async function updateTableName(id, newName) {
+    setTableStatus('Updating table name...');
+    const response = await fetch(`${API_BASE_URL}/api/admin/tables/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName })
+    });
+    if (response.ok) {
+      setTableStatus('Table name updated.');
+      loadTables();
+    } else {
+      setTableStatus('Failed to update table name.');
+    }
+  }
 
   function resetForm() {
     setEditingId('');
@@ -104,43 +122,36 @@ export default function AdminPage() {
     <div className="grid gap-4">
       <Card>
         <h2 className="text-2xl font-bold">Admin Panel</h2>
-        <p className="mt-1 text-sm text-slate-600">Generate fresh table QR links and manage menu items with full CRUD.</p>
+        <p className="mt-1 text-sm text-slate-600">Manage your restaurant menu and table QR codes.</p>
       </Card>
 
+      {/* Table Management Section */}
       <Card>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h3 className="text-xl font-bold">Generate Table QR</h3>
-            <p className="text-sm text-slate-600">Set table count to regenerate all table QR links.</p>
-          </div>
-          <label className="text-sm font-semibold text-slate-600">
-            Total Tables
-            <input
-              type="number"
-              min={1}
-              max={300}
-              value={tableCount}
-              onChange={(e) => setTableCount(Number(e.target.value || 1))}
-              className="input-base ml-0 mt-1 w-24 sm:ml-2 sm:mt-0"
-            />
-          </label>
-          <button className="btn-accent" onClick={() => setGeneratedCount(tableCount)}>
-            Generate QR
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-xl font-bold">Tables & QR Codes</h3>
+          {tableStatus ? <span className="text-xs font-semibold text-emerald-600">{tableStatus}</span> : null}
         </div>
-
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <p className="mt-1 text-sm text-slate-600">Rename tables and download QR codes for customers.</p>
+        
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {tableLinks.map((table) => (
-            <div key={table.id} className="rounded-2xl border border-white/80 bg-white p-3 text-center shadow-soft">
-              <p className="text-sm font-bold">{table.id}</p>
-              <img
-                className="mx-auto mt-2 h-28 w-28 rounded-lg border border-slate-100"
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(table.url)}`}
-                alt={`QR ${table.id}`}
+            <div key={table.id} className="rounded-2xl border border-white/80 bg-white p-4 shadow-soft flex flex-col items-center">
+              <input 
+                type="text"
+                defaultValue={table.name}
+                onBlur={(e) => {
+                  if (e.target.value !== table.name) {
+                    updateTableName(table.id, e.target.value);
+                  }
+                }}
+                className="w-full text-center font-bold bg-slate-50 border-none rounded-lg py-1 focus:ring-2 focus:ring-hotel-dusk"
               />
-              <a className="mt-2 block text-xs text-slate-600 underline" href={table.url} target="_blank" rel="noreferrer">
-                Open Link
-              </a>
+              <img
+                className="mx-auto mt-3 h-32 w-32 rounded-lg border border-slate-100"
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(table.url)}`}
+                alt={`QR ${table.name}`}
+              />
+              <p className="mt-2 text-[10px] text-slate-400 font-mono uppercase tracking-widest">{table.id}</p>
             </div>
           ))}
         </div>

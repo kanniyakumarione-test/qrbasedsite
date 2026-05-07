@@ -78,6 +78,19 @@ async function updateOrderStatus(id, status, updatedAt) {
   if (error) throw error;
 }
 
+// Table operations
+async function getTables() {
+  const { data, error } = await supabase.from('tables').select('*').order('id');
+  if (error) throw error;
+  return data;
+}
+
+async function updateTable(id, name) {
+  const { data, error } = await supabase.from('tables').update({ name }).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
 module.exports = {
   getMenu,
   getMenuItem,
@@ -87,5 +100,7 @@ module.exports = {
   getOrders,
   getOrder,
   addOrder,
-  updateOrderStatus
+  updateOrderStatus,
+  getTables,
+  updateTable
 };
