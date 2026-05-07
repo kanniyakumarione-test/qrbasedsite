@@ -5,13 +5,23 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.warn('Supabase credentials missing. API will fail until SUPABASE_URL and SUPABASE_ANON_KEY are set in environment variables.');
+  // Instead of just a warning, we'll throw a clear error that the API can catch
+  const missingError = 'SUPABASE_URL or SUPABASE_ANON_KEY is missing in environment variables.';
+  console.error(missingError);
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+// We only initialize if we have the keys, otherwise the app will crash with a clear message
+const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+
+function checkClient() {
+  if (!supabase) {
+    throw new Error('Supabase client not initialized. Please set SUPABASE_URL and SUPABASE_ANON_KEY in Vercel settings.');
+  }
+}
 
 // Menu operations
 async function getMenu(onlyAvailable = true) {
+  checkClient();
   let query = supabase.from('menu').select('*');
   if (onlyAvailable) {
     query = query.eq('available', true);
@@ -22,30 +32,35 @@ async function getMenu(onlyAvailable = true) {
 }
 
 async function getMenuItem(id) {
+  checkClient();
   const { data, error } = await supabase.from('menu').select('*').eq('id', id).single();
   if (error) return null;
   return data;
 }
 
 async function addMenuItem(item) {
+  checkClient();
   const { data, error } = await supabase.from('menu').insert([item]).select().single();
   if (error) throw error;
   return data;
 }
 
 async function updateMenuItem(id, item) {
+  checkClient();
   const { data, error } = await supabase.from('menu').update(item).eq('id', id).select().single();
   if (error) throw error;
   return data;
 }
 
 async function deleteMenuItem(id) {
+  checkClient();
   const { error } = await supabase.from('menu').delete().eq('id', id);
   if (error) throw error;
 }
 
 // Order operations
 async function getOrders(filters = {}) {
+  checkClient();
   let query = supabase.from('orders').select('*').order('createdAt', { ascending: false });
 
   if (filters.tableId) {
@@ -62,30 +77,35 @@ async function getOrders(filters = {}) {
 }
 
 async function getOrder(id) {
+  checkClient();
   const { data, error } = await supabase.from('orders').select('*').eq('id', id).single();
   if (error) return null;
   return data;
 }
 
 async function addOrder(order) {
+  checkClient();
   const { data, error } = await supabase.from('orders').insert([order]).select().single();
   if (error) throw error;
   return data;
 }
 
 async function updateOrderStatus(id, status, updatedAt) {
+  checkClient();
   const { error } = await supabase.from('orders').update({ status, updatedAt }).eq('id', id);
   if (error) throw error;
 }
 
 // Table operations
 async function getTables() {
+  checkClient();
   const { data, error } = await supabase.from('tables').select('*').order('id');
   if (error) throw error;
   return data;
 }
 
 async function updateTable(id, name) {
+  checkClient();
   const { data, error } = await supabase.from('tables').update({ name }).eq('id', id).select().single();
   if (error) throw error;
   return data;
