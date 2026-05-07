@@ -69,20 +69,18 @@ function parseBody(req) {
   });
 }
 
-function formatCurrency(amount) {
-  return `Rs. ${Number(amount || 0).toFixed(2)}`;
-}
-
-function buildOrderResponse(order) {
+function buildOrderResponse(o) {
+  if (!o) return null;
+  // Handle case-insensitive column names from Postgres/Supabase
   return {
-    id: order.id,
-    tableId: order.tableId,
-    items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
-    note: order.note || '',
-    status: order.status,
-    createdAt: order.createdAt,
-    updatedAt: order.updatedAt,
-    totalAmount: order.totalAmount
+    id: o.id,
+    tableId: o.tableId || o.tableid || '?',
+    items: typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []),
+    note: o.note || '',
+    status: o.status || 'NEW',
+    createdAt: o.createdAt || o.createdat || new Date().toISOString(),
+    updatedAt: o.updatedAt || o.updatedat || new Date().toISOString(),
+    totalAmount: o.totalAmount || o.totalamount || 0
   };
 }
 
@@ -157,8 +155,11 @@ const server = http.createServer(async (req, res) => {
     if (method === 'POST' && (pathname === '/api/orders' || pathname === '/orders')) {
       const payload = await parseBody(req);
       const order = {
-        ...payload,
         id: `ORD-${Date.now()}`,
+        tableId: payload.tableId,
+        items: payload.items,
+        note: payload.note || '',
+        totalAmount: payload.totalAmount || 0,
         status: 'NEW',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -176,7 +177,7 @@ const server = http.createServer(async (req, res) => {
       const newStatus = nextStatus(target.status);
       const updatedAt = new Date().toISOString();
       await db.updateOrderStatus(orderId, newStatus, updatedAt);
-      return sendJson(res, 200, { ...buildOrderResponse(target), status: newStatus, updatedAt });
+      return sendJson(res, 200, { ...buildOrderResponse(target), status: newStatus, updatedAt: updatedAt });
     }
 
     if (method === 'GET' && (pathname === '/api/admin/tables' || pathname === '/admin/tables')) {
@@ -195,7 +196,8 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 404, { error: 'Not found' });
   } catch (error) {
     console.error('API Error:', error);
-    return sendJson(res, 500, { error: error.message || 'Server error' });
+    // Send a more helpful error for debugging
+    return sendJson(res, 500, { error: error.message || 'Server error', details: error.details || '' });
   }
 });
 
