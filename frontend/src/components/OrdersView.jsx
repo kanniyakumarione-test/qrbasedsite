@@ -5,10 +5,19 @@ import { API_BASE_URL } from '../api-config';
 
 export default function OrdersView({ title, mode, buttonText, disabledStatusCheck }) {
   const [orders, setOrders] = useState([]);
+  const [error, setError] = useState('');
 
   async function fetchData() {
-    const ordersRes = await fetch(`${API_BASE_URL}/api/orders?mode=${mode}`).then((r) => r.json());
-    setOrders(ordersRes);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/orders?mode=${mode}`);
+      if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+      const data = await res.json();
+      setOrders(data);
+      setError('');
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError('Could not connect to backend. Checking again in 7s...');
+    }
   }
 
   useEffect(() => {
@@ -18,22 +27,31 @@ export default function OrdersView({ title, mode, buttonText, disabledStatusChec
   }, [mode]);
 
   async function advance(id) {
-    await fetch(`${API_BASE_URL}/api/orders/${id}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode })
-    });
-    fetchData();
+    try {
+      await fetch(`${API_BASE_URL}/api/orders/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode })
+      });
+      fetchData();
+    } catch (err) {
+      alert('Failed to update status. Check your connection.');
+    }
   }
 
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-bold">{title}</h2>
-        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600">Auto refresh: 7s</span>
+        <div className="flex items-center gap-2">
+          {error ? <span className="text-xs font-bold text-rose-600 animate-pulse">{error}</span> : null}
+          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600">Auto refresh: 7s</span>
+        </div>
       </div>
 
-      {!orders.length ? <p className="mt-4 rounded-xl bg-white px-3 py-2 text-sm text-slate-600">No orders right now.</p> : null}
+      {!orders.length && !error ? (
+        <p className="mt-4 rounded-xl bg-white px-3 py-2 text-sm text-slate-600">No orders right now.</p>
+      ) : null}
 
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {orders.map((order) => (
@@ -45,7 +63,9 @@ export default function OrdersView({ title, mode, buttonText, disabledStatusChec
               </span>
             </div>
             <p className="mt-1 text-xs font-semibold text-slate-500">Table {order.tableId}</p>
-            <p className="mt-3 break-words text-sm text-slate-700">{order.items.map((i) => `${i.name} x${i.quantity}`).join(', ')}</p>
+            <p className="mt-3 break-words text-sm text-slate-700">
+              {Array.isArray(order.items) ? order.items.map((i) => `${i.name} x${i.quantity}`).join(', ') : 'No items'}
+            </p>
             <p className="mt-2 text-sm font-semibold text-slate-700">Table Total: {money(order.totalAmount)}</p>
             {order.note ? <p className="mt-1 text-xs text-slate-500">Note: {order.note}</p> : null}
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Card from '../components/Card';
 import { API_BASE_URL } from '../api-config';
 
@@ -10,53 +10,27 @@ const emptyForm = {
 };
 
 export default function AdminPage() {
-  const [tables, setTables] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState('');
   const [status, setStatus] = useState('');
-  const [tableStatus, setTableStatus] = useState('');
-
-  // 1. Force use window.location.origin for QR codes (No more IP addresses)
-  const tableLinks = useMemo(() => {
-    const baseUrl = window.location.origin;
-    return tables.map((table) => ({
-      ...table,
-      url: `${baseUrl}/table/${table.id}`
-    }));
-  }, [tables]);
+  const [error, setError] = useState('');
 
   async function loadMenu() {
-    const response = await fetch(`${API_BASE_URL}/api/admin/menu`);
-    const data = await response.json();
-    setMenuItems(data);
-  }
-
-  async function loadTables() {
-    const response = await fetch(`${API_BASE_URL}/api/admin/tables`);
-    const data = await response.json();
-    if (Array.isArray(data)) setTables(data);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/menu`);
+      if (!response.ok) throw new Error('Failed to load menu');
+      const data = await response.json();
+      setMenuItems(data);
+      setError('');
+    } catch (err) {
+      setError('Connection error: Could not load menu items.');
+    }
   }
 
   useEffect(() => {
     loadMenu();
-    loadTables();
   }, []);
-
-  async function updateTableName(id, newName) {
-    setTableStatus('Updating table name...');
-    const response = await fetch(`${API_BASE_URL}/api/admin/tables/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName })
-    });
-    if (response.ok) {
-      setTableStatus('Table name updated.');
-      loadTables();
-    } else {
-      setTableStatus('Failed to update table name.');
-    }
-  }
 
   function resetForm() {
     setEditingId('');
@@ -74,22 +48,26 @@ export default function AdminPage() {
       available: !!form.available
     };
 
-    const isEdit = Boolean(editingId);
-    const response = await fetch(isEdit ? `${API_BASE_URL}/api/admin/menu/${editingId}` : `${API_BASE_URL}/api/admin/menu`, {
-      method: isEdit ? 'PUT' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    try {
+      const isEdit = Boolean(editingId);
+      const response = await fetch(isEdit ? `${API_BASE_URL}/api/admin/menu/${editingId}` : `${API_BASE_URL}/api/admin/menu`, {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
-    const result = await response.json();
-    if (!response.ok) {
-      setStatus(result.error || 'Could not save menu item');
-      return;
+      const result = await response.json();
+      if (!response.ok) {
+        setStatus(result.error || 'Could not save menu item');
+        return;
+      }
+
+      setStatus(isEdit ? 'Menu item updated.' : 'Menu item created.');
+      resetForm();
+      loadMenu();
+    } catch (err) {
+      setStatus('Network error: Failed to save.');
     }
-
-    setStatus(isEdit ? 'Menu item updated.' : 'Menu item created.');
-    resetForm();
-    loadMenu();
   }
 
   function startEdit(item) {
@@ -106,55 +84,25 @@ export default function AdminPage() {
     const ok = window.confirm('Delete this menu item?');
     if (!ok) return;
 
-    const response = await fetch(`${API_BASE_URL}/api/admin/menu/${id}`, { method: 'DELETE' });
-    const result = await response.json();
-    if (!response.ok) {
-      setStatus(result.error || 'Could not delete item');
-      return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/menu/${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Delete failed');
+      if (editingId === id) resetForm();
+      setStatus('Menu item deleted.');
+      loadMenu();
+    } catch (err) {
+      setStatus('Network error: Could not delete.');
     }
-
-    if (editingId === id) resetForm();
-    setStatus('Menu item deleted.');
-    loadMenu();
   }
 
   return (
     <div className="grid gap-4">
       <Card>
-        <h2 className="text-2xl font-bold">Admin Panel</h2>
-        <p className="mt-1 text-sm text-slate-600">Manage your restaurant menu and table QR codes.</p>
-      </Card>
-
-      {/* Table Management Section */}
-      <Card>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-xl font-bold">Tables & QR Codes</h3>
-          {tableStatus ? <span className="text-xs font-semibold text-emerald-600">{tableStatus}</span> : null}
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Menu Management</h2>
+          {error ? <span className="text-sm font-bold text-rose-600">{error}</span> : null}
         </div>
-        <p className="mt-1 text-sm text-slate-600">Rename tables and download QR codes for customers.</p>
-        
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {tableLinks.map((table) => (
-            <div key={table.id} className="rounded-2xl border border-white/80 bg-white p-4 shadow-soft flex flex-col items-center">
-              <input 
-                type="text"
-                defaultValue={table.name}
-                onBlur={(e) => {
-                  if (e.target.value !== table.name) {
-                    updateTableName(table.id, e.target.value);
-                  }
-                }}
-                className="w-full text-center font-bold bg-slate-50 border-none rounded-lg py-1 focus:ring-2 focus:ring-hotel-dusk"
-              />
-              <img
-                className="mx-auto mt-3 h-32 w-32 rounded-lg border border-slate-100"
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(table.url)}`}
-                alt={`QR ${table.name}`}
-              />
-              <p className="mt-2 text-[10px] text-slate-400 font-mono uppercase tracking-widest">{table.id}</p>
-            </div>
-          ))}
-        </div>
+        <p className="mt-1 text-sm text-slate-600">Add, edit, or remove items from your digital menu.</p>
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -206,7 +154,7 @@ export default function AdminPage() {
 
         <Card>
           <h3 className="text-xl font-bold">Menu Items</h3>
-          <p className="text-sm text-slate-600">All items including unavailable ones.</p>
+          <p className="text-sm text-slate-600">List of all items on your menu.</p>
           <div className="mt-4 space-y-2">
             {menuItems.map((item) => (
               <div key={item.id} className="rounded-xl border border-white/80 bg-white p-3 shadow-soft">
@@ -225,7 +173,7 @@ export default function AdminPage() {
                 </div>
               </div>
             ))}
-            {!menuItems.length ? <p className="text-sm text-slate-600">No menu items yet.</p> : null}
+            {!menuItems.length && !error ? <p className="text-sm text-slate-600">No menu items yet.</p> : null}
           </div>
         </Card>
       </div>
