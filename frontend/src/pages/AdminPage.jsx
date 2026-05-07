@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Card from '../components/Card';
 import { SERVER_IP } from '../ip-config';
+import { API_BASE_URL } from '../api-config';
 
 const emptyForm = {
   name: '',
@@ -30,7 +31,7 @@ export default function AdminPage() {
   }, [generatedCount]);
 
   async function loadMenu() {
-    const response = await fetch('/api/admin/menu');
+    const response = await fetch(`${API_BASE_URL}/api/admin/menu`);
     const data = await response.json();
     setMenuItems(data);
   }
@@ -56,7 +57,7 @@ export default function AdminPage() {
     };
 
     const isEdit = Boolean(editingId);
-    const response = await fetch(isEdit ? `/api/admin/menu/${editingId}` : '/api/admin/menu', {
+    const response = await fetch(isEdit ? `${API_BASE_URL}/api/admin/menu/${editingId}` : `${API_BASE_URL}/api/admin/menu`, {
       method: isEdit ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -87,7 +88,7 @@ export default function AdminPage() {
     const ok = window.confirm('Delete this menu item?');
     if (!ok) return;
 
-    const response = await fetch(`/api/admin/menu/${id}`, { method: 'DELETE' });
+    const response = await fetch(`${API_BASE_URL}/api/admin/menu/${id}`, { method: 'DELETE' });
     const result = await response.json();
     if (!response.ok) {
       setStatus(result.error || 'Could not delete item');

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import Card from './Card';
 import { money, statusStyle } from '../lib/format';
+import { API_BASE_URL } from '../api-config';
 
 export default function OrdersView({ title, mode, buttonText, disabledStatusCheck }) {
   const [orders, setOrders] = useState([]);
 
   async function fetchData() {
-    const ordersRes = await fetch(`/api/orders?mode=${mode}`).then((r) => r.json());
+    const ordersRes = await fetch(`${API_BASE_URL}/api/orders?mode=${mode}`).then((r) => r.json());
     setOrders(ordersRes);
   }
 
@@ -17,7 +18,7 @@ export default function OrdersView({ title, mode, buttonText, disabledStatusChec
   }, [mode]);
 
   async function advance(id) {
-    await fetch(`/api/orders/${id}/status`, {
+    await fetch(`${API_BASE_URL}/api/orders/${id}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode })

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Card from '../components/Card';
 import { money } from '../lib/format';
+import { API_BASE_URL } from '../api-config';
 
 export default function TableOrderPage() {
   const { tableId } = useParams();
@@ -48,7 +49,7 @@ export default function TableOrderPage() {
   }
 
   async function loadTableOrders() {
-    const response = await fetch(`/api/orders?tableId=${encodeURIComponent(tableId)}`);
+    const response = await fetch(`${API_BASE_URL}/api/orders?tableId=${encodeURIComponent(tableId)}`);
     const data = await response.json();
     setOrders(data);
 
@@ -64,7 +65,7 @@ export default function TableOrderPage() {
   }
 
   useEffect(() => {
-    fetch('/api/menu')
+    fetch(`${API_BASE_URL}/api/menu`)
       .then((r) => r.json())
       .then((data) => {
         setMenu(data);
@@ -106,7 +107,7 @@ export default function TableOrderPage() {
       return;
     }
 
-    const response = await fetch('/api/orders', {
+    const response = await fetch(`${API_BASE_URL}/api/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tableId, items, note })
