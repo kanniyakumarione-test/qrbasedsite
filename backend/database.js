@@ -1,24 +1,21 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
-const usingServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('SUPABASE_URL and (SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY) must be set in environment variables.');
-} else if (!usingServiceRole) {
-  console.warn('Using SUPABASE_ANON_KEY on backend; RLS policies may hide data. Prefer SUPABASE_SERVICE_ROLE_KEY on server.');
+  console.error('SUPABASE_URL or SUPABASE_ANON_KEY is missing in environment variables.');
 }
 
 const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
 function checkClient() {
   if (!supabase) {
-    throw new Error('Supabase client not initialized. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY) in Vercel settings.');
+    throw new Error('Supabase client not initialized. Please set SUPABASE_URL and SUPABASE_ANON_KEY in Vercel settings.');
   }
 }
 
-// ── Menu operations ──────────────────────────────────────────────────────────
+// ── Menu ──────────────────────────────────────────────────────────────────────
 
 async function getMenu(onlyAvailable = true) {
   checkClient();
@@ -56,21 +53,13 @@ async function deleteMenuItem(id) {
   if (error) throw error;
 }
 
-// ── Order operations ─────────────────────────────────────────────────────────
+// ── Orders ────────────────────────────────────────────────────────────────────
 
 async function getOrders(filters = {}) {
   checkClient();
-  // Postgres lowercases unquoted column names, so use lowercase here
   let query = supabase.from('orders').select('*').order('createdat', { ascending: false });
-
-  if (filters.tableId) {
-    query = query.eq('tableid', filters.tableId);
-  }
-
-  if (filters.mode === 'kitchen') {
-    query = query.in('status', ['NEW', 'PREPARING', 'READY']);
-  }
-
+  if (filters.tableId) query = query.eq('tableid', filters.tableId);
+  if (filters.mode === 'kitchen') query = query.in('status', ['NEW', 'PREPARING', 'READY']);
   const { data, error } = await query;
   if (error) throw error;
   return data || [];
@@ -96,7 +85,13 @@ async function updateOrderStatus(id, status, updatedAt) {
   if (error) throw error;
 }
 
-// ── Table operations ─────────────────────────────────────────────────────────
+async function deleteOrder(id) {
+  checkClient();
+  const { error } = await supabase.from('orders').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ── Tables ────────────────────────────────────────────────────────────────────
 
 async function getTables() {
   checkClient();
@@ -113,15 +108,7 @@ async function updateTable(id, name) {
 }
 
 module.exports = {
-  getMenu,
-  getMenuItem,
-  addMenuItem,
-  updateMenuItem,
-  deleteMenuItem,
-  getOrders,
-  getOrder,
-  addOrder,
-  updateOrderStatus,
-  getTables,
-  updateTable
+  getMenu, getMenuItem, addMenuItem, updateMenuItem, deleteMenuItem,
+  getOrders, getOrder, addOrder, updateOrderStatus, deleteOrder,
+  getTables, updateTable
 };

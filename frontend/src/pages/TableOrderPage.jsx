@@ -22,6 +22,18 @@ export default function TableOrderPage() {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [myOrders, setMyOrders] = useState([]);
+  
+  // Track acknowledged/dismissed orders in localStorage
+  const [dismissedIds, setDismissedIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`dismissed_${tableId}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(`dismissed_${tableId}`, JSON.stringify(dismissedIds));
+  }, [dismissedIds, tableId]);
 
   // Load menu
   useEffect(() => {
@@ -40,25 +52,38 @@ export default function TableOrderPage() {
       });
   }, []);
 
-  // Load and poll this table's orders so status survives refresh
+  // Load and poll this table's orders
   useEffect(() => {
     function fetchOrders() {
       fetch(`${API_BASE_URL}/api/orders?tableId=${encodeURIComponent(tableId)}`)
         .then((r) => r.json())
         .then((data) => {
           if (Array.isArray(data)) {
-            // Only show orders placed in the last 4 hours
-            const cutoff = Date.now() - 4 * 60 * 60 * 1000;
-            const recent = data.filter((o) => new Date(o.createdAt || o.createdat || 0).getTime() > cutoff);
+            // Cutoff: 24 hours
+            const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+            const recent = data.filter((o) => {
+              const time = new Date(o.createdAt || o.createdat || 0).getTime();
+              return time > cutoff;
+            });
             setMyOrders(recent);
           }
         })
         .catch(() => {});
     }
     fetchOrders();
-    const timer = setInterval(fetchOrders, 10000);
+    const timer = setInterval(fetchOrders, 8000);
     return () => clearInterval(timer);
   }, [tableId]);
+
+  // Orders to display (exclude dismissed ones)
+  const visibleOrders = useMemo(() => {
+    return myOrders.filter(o => !dismissedIds.includes(o.id));
+  }, [myOrders, dismissedIds]);
+
+  // Check if any visible order is READY to trigger popup
+  const readyOrder = useMemo(() => {
+    return visibleOrders.find(o => o.status === 'READY');
+  }, [visibleOrders]);
 
   const grouped = useMemo(() => {
     return menu.reduce((acc, item) => {
@@ -77,7 +102,11 @@ export default function TableOrderPage() {
   const total = cartItems.reduce((sum, i) => sum + i.subtotal, 0);
 
   function changeQty(id, delta) {
-    setQty((prev) => ({ ...prev, [id]: Math.max(0, Math.min(20, (prev[id] || 0) + delta)) }));
+    setQty((prev) => ({ ...prev, [id]: Math.max(0, (prev[id] || 0) + delta) }));
+  }
+
+  function dismissOrder(id) {
+    setDismissedIds(prev => [...prev, id]);
   }
 
   async function placeOrder() {
@@ -100,12 +129,6 @@ export default function TableOrderPage() {
       menu.forEach((item) => { reset[item.id] = 0; });
       setQty(reset);
       setNote('');
-
-      // Refresh orders list immediately
-      fetch(`${API_BASE_URL}/api/orders?tableId=${encodeURIComponent(tableId)}`)
-        .then((r) => r.json())
-        .then((d) => { if (Array.isArray(d)) setMyOrders(d); })
-        .catch(() => {});
     } catch (err) {
       setErrorMsg(err.message || 'Something went wrong. Please try again.');
     } finally {
@@ -125,7 +148,30 @@ export default function TableOrderPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 pb-20">
+      {/* Ready Notification Popup */}
+      {readyOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm animate-in fade-in zoom-in duration-300 rounded-3xl bg-white p-8 text-center shadow-2xl">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-4xl">🥘</div>
+            <h2 className="mt-6 text-2xl font-extrabold text-slate-800">Your Order is Ready!</h2>
+            <p className="mt-2 text-slate-600 font-medium">Please collect your hot food from the counter.</p>
+            <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-left border border-slate-100">
+               <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Order Items</p>
+               <p className="mt-1 text-sm font-bold text-slate-700">
+                {readyOrder.items.map(i => `${i.name} x${i.quantity}`).join(', ')}
+               </p>
+            </div>
+            <button
+              onClick={() => dismissOrder(readyOrder.id)}
+              className="mt-8 w-full rounded-2xl bg-emerald-500 py-4 text-lg font-extrabold text-white shadow-lg shadow-emerald-200 hover:bg-emerald-600 active:scale-95 transition-all"
+            >
+              Got it, Done!
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white/90 shadow-sm backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-4">
@@ -143,22 +189,24 @@ export default function TableOrderPage() {
 
       <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
 
-        {/* Active Orders (survives refresh) */}
-        {myOrders.length > 0 && (
+        {/* Active Orders List */}
+        {visibleOrders.length > 0 && (
           <div>
-            <h2 className="mb-3 text-xs font-extrabold uppercase tracking-widest text-slate-500">Your Orders</h2>
+            <h2 className="mb-3 text-xs font-extrabold uppercase tracking-widest text-slate-500">Track Orders</h2>
             <div className="space-y-2">
-              {myOrders.slice(0, 3).map((order) => {
+              {visibleOrders.map((order) => {
                 const s = STATUS_LABEL[order.status] || STATUS_LABEL.NEW;
                 return (
-                  <div key={order.id} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm">
-                    <div>
-                      <p className="text-xs font-bold text-slate-700">
-                        {Array.isArray(order.items) ? order.items.map((i) => `${i.name} ×${i.quantity}`).join(', ') : 'Order'}
+                  <div key={order.id} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm border border-white">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-slate-700 truncate">
+                        {order.items.map((i) => `${i.name} ×${i.quantity}`).join(', ')}
                       </p>
-                      <p className="text-xs text-slate-400">Total: {money(order.totalAmount || order.totalamount)}</p>
+                      <p className="text-[10px] text-slate-400 font-medium">
+                        Order {order.id.split('-')[1]} · {money(order.totalAmount || order.totalamount)}
+                      </p>
                     </div>
-                    <span className={`ml-3 shrink-0 rounded-full px-3 py-1 text-xs font-bold ${s.color}`}>{s.text}</span>
+                    <span className={`ml-3 shrink-0 rounded-full px-3 py-1 text-[10px] font-bold ${s.color}`}>{s.text}</span>
                   </div>
                 );
               })}
@@ -166,9 +214,9 @@ export default function TableOrderPage() {
           </div>
         )}
 
-        {/* Success / Error Messages */}
+        {/* Success / Error */}
         {successMsg && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-center">
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-center animate-in slide-in-from-top duration-500">
             <p className="text-2xl">🎉</p>
             <p className="mt-2 font-bold text-emerald-800">{successMsg}</p>
           </div>
@@ -185,7 +233,7 @@ export default function TableOrderPage() {
             <h2 className="mb-3 text-xs font-extrabold uppercase tracking-widest text-amber-600">{category}</h2>
             <div className="space-y-3">
               {items.map((item) => (
-                <div key={item.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm">
+                <div key={item.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm transition-all active:scale-[0.98]">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-bold text-slate-800">{item.name}</p>
                     <p className="text-base font-extrabold text-amber-600">{money(item.price)}</p>
@@ -198,7 +246,7 @@ export default function TableOrderPage() {
                         <button onClick={() => changeQty(item.id, +1)} className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-lg font-bold text-white hover:bg-amber-600 transition-colors">+</button>
                       </>
                     ) : (
-                      <button onClick={() => changeQty(item.id, +1)} className="rounded-full bg-amber-500 px-4 py-1.5 text-sm font-bold text-white shadow hover:bg-amber-600 transition-colors">
+                      <button onClick={() => changeQty(item.id, +1)} className="rounded-full bg-amber-500 px-5 py-2 text-sm font-bold text-white shadow-md hover:bg-amber-600 transition-all active:scale-95">
                         Add
                       </button>
                     )}
@@ -209,43 +257,36 @@ export default function TableOrderPage() {
           </div>
         ))}
 
-        {/* Order Summary & Place Order */}
+        {/* Summary Footer Panel */}
         {cartItems.length > 0 && (
-          <div className="rounded-2xl border border-white bg-white p-5 shadow-md">
-            <h2 className="text-lg font-extrabold text-slate-800">Your Order</h2>
-            <div className="mt-3 space-y-2">
-              {cartItems.map((item) => (
-                <div key={item.id} className="flex justify-between text-sm text-slate-700">
-                  <span>{item.name} × {item.quantity}</span>
-                  <span className="font-semibold">{money(item.subtotal)}</span>
-                </div>
-              ))}
-              <div className="flex justify-between border-t border-slate-100 pt-3 font-extrabold text-slate-800">
-                <span>Total</span>
-                <span className="text-lg text-amber-600">{money(total)}</span>
-              </div>
+          <div className="sticky bottom-4 z-20 rounded-3xl border border-white bg-white/90 p-5 shadow-2xl backdrop-blur-lg animate-in slide-in-from-bottom duration-500">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-extrabold text-slate-800">Total Order</h2>
+              <span className="text-2xl font-black text-amber-600">{money(total)}</span>
             </div>
+            
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Special requests? (optional)"
+              placeholder="Any special requests? (e.g. Less spicy)"
               rows={2}
-              className="mt-4 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              className="mb-4 w-full resize-none rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
             />
+
             <button
               onClick={placeOrder}
               disabled={placing}
-              className="mt-4 w-full rounded-2xl bg-amber-500 py-4 text-base font-extrabold text-white shadow-lg hover:bg-amber-600 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-2xl bg-amber-500 py-5 text-lg font-black text-white shadow-xl shadow-amber-200 hover:bg-amber-600 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {placing ? 'Placing Order...' : `Place Order · ${money(total)}`}
+              {placing ? '⏳ Placing Order...' : `🚀 Place Order · ${money(total)}`}
             </button>
           </div>
         )}
 
         {!menu.length && !loading && (
-          <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
-            <p className="text-4xl">🍽</p>
-            <p className="mt-3 font-semibold text-slate-600">Menu is being prepared. Please wait.</p>
+          <div className="rounded-3xl bg-white p-12 text-center shadow-lg border border-white">
+            <p className="text-5xl">🥣</p>
+            <p className="mt-4 font-bold text-slate-400">Our menu is being updated.</p>
           </div>
         )}
       </div>

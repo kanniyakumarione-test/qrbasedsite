@@ -39,6 +39,17 @@ export default function OrdersView({ title, mode, buttonText, disabledStatusChec
     }
   }
 
+  async function removeOrder(id) {
+    const ok = window.confirm('Remove this order from the kitchen view?');
+    if (!ok) return;
+    try {
+      await fetch(`${API_BASE_URL}/api/orders/${id}`, { method: 'DELETE' });
+      fetchData();
+    } catch (err) {
+      alert('Failed to remove order.');
+    }
+  }
+
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -66,16 +77,28 @@ export default function OrdersView({ title, mode, buttonText, disabledStatusChec
             <p className="mt-3 break-words text-sm text-slate-700">
               {Array.isArray(order.items) ? order.items.map((i) => `${i.name} x${i.quantity}`).join(', ') : 'No items'}
             </p>
-            <p className="mt-2 text-sm font-semibold text-slate-700">Table Total: {money(order.totalAmount)}</p>
+            <p className="mt-2 text-sm font-semibold text-slate-700">Total: {money(order.totalAmount)}</p>
             {order.note ? <p className="mt-1 text-xs text-slate-500">Note: {order.note}</p> : null}
 
-            <button
-              onClick={() => advance(order.id)}
-              disabled={disabledStatusCheck(order.status)}
-              className="btn-accent mt-4 w-full disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              {buttonText(order.status)}
-            </button>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => advance(order.id)}
+                disabled={disabledStatusCheck(order.status)}
+                className="btn-accent flex-1 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {buttonText(order.status)}
+              </button>
+              {/* Show Remove button for READY orders */}
+              {order.status === 'READY' && (
+                <button
+                  onClick={() => removeOrder(order.id)}
+                  className="rounded-xl bg-rose-100 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-200 transition-colors"
+                  title="Remove order"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>

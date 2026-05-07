@@ -53,7 +53,6 @@ function parseBody(req) {
   });
 }
 
-// Handle both camelCase and lowercase Postgres column names
 function buildOrderResponse(o) {
   if (!o) return null;
   return {
@@ -95,35 +94,27 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { service: 'hotel-qr-backend', status: 'ok' });
     }
 
-    // ── Menu (customer) ───────────────────────────────────────────────────
+    // ── Menu (customer) ───────────────────────────────────────────────────────
     if (method === 'GET' && (pathname === '/api/menu' || pathname === '/menu')) {
-      const menu = await db.getMenu(true);
-      return sendJson(res, 200, menu);
+      return sendJson(res, 200, await db.getMenu(true));
     }
 
-    // ── Menu (admin) ──────────────────────────────────────────────────────
+    // ── Menu (admin) ──────────────────────────────────────────────────────────
     if (method === 'GET' && (pathname === '/api/admin/menu' || pathname === '/admin/menu')) {
-      const menu = await db.getMenu(false);
-      return sendJson(res, 200, menu);
+      return sendJson(res, 200, await db.getMenu(false));
     }
-
     if (method === 'POST' && (pathname === '/api/admin/menu' || pathname === '/admin/menu')) {
-      const payload = await parseBody(req);
-      const added = await db.addMenuItem(payload);
-      return sendJson(res, 201, added);
+      return sendJson(res, 201, await db.addMenuItem(await parseBody(req)));
     }
 
     const adminMenuMatch = pathname.match(/^\/(api\/admin\/menu|admin\/menu)\/([^\/]+)$/);
-    if (adminMenuMatch && method === 'PUT') {
-      const updated = await db.updateMenuItem(adminMenuMatch[2], await parseBody(req));
-      return sendJson(res, 200, updated);
-    }
-    if (adminMenuMatch && method === 'DELETE') {
-      await db.deleteMenuItem(adminMenuMatch[2]);
-      return sendJson(res, 200, { ok: true });
+    if (adminMenuMatch) {
+      const id = adminMenuMatch[2];
+      if (method === 'PUT') return sendJson(res, 200, await db.updateMenuItem(id, await parseBody(req)));
+      if (method === 'DELETE') { await db.deleteMenuItem(id); return sendJson(res, 200, { ok: true }); }
     }
 
-    // ── Orders ────────────────────────────────────────────────────────────
+    // ── Orders ────────────────────────────────────────────────────────────────
     if (method === 'GET' && (pathname === '/api/orders' || pathname === '/orders')) {
       const mode = parsedUrl.searchParams.get('mode');
       const tableId = parsedUrl.searchParams.get('tableId');
@@ -134,7 +125,6 @@ const server = http.createServer(async (req, res) => {
     if (method === 'POST' && (pathname === '/api/orders' || pathname === '/orders')) {
       const payload = await parseBody(req);
       const now = new Date().toISOString();
-      // Use lowercase keys to match Postgres column names
       const order = {
         id: `ORD-${Date.now()}`,
         tableid: payload.tableId,
@@ -145,34 +135,37 @@ const server = http.createServer(async (req, res) => {
         createdat: now,
         updatedat: now
       };
-      const added = await db.addOrder(order);
-      return sendJson(res, 201, buildOrderResponse(added));
+      return sendJson(res, 201, buildOrderResponse(await db.addOrder(order)));
     }
 
+    // DELETE a specific order (kitchen "Remove" button)
+    const orderIdMatch = pathname.match(/^\/(api\/orders|orders)\/([^\/]+)$/);
+    if (orderIdMatch && method === 'DELETE') {
+      await db.deleteOrder(orderIdMatch[2]);
+      return sendJson(res, 200, { ok: true });
+    }
+
+    // PATCH order status
     const statusMatch = pathname.match(/^\/(api\/orders|orders)\/([^\/]+)\/status$/);
-    if (method === 'PATCH' && statusMatch) {
+    if (statusMatch && method === 'PATCH') {
       const orderId = statusMatch[2];
       const target = await db.getOrder(orderId);
       if (!target) return sendJson(res, 404, { error: 'Order not found' });
-
       const newStatus = nextStatus(target.status);
       const now = new Date().toISOString();
       await db.updateOrderStatus(orderId, newStatus, now);
       return sendJson(res, 200, { ...buildOrderResponse(target), status: newStatus });
     }
 
-    // ── Tables ────────────────────────────────────────────────────────────
+    // ── Tables ────────────────────────────────────────────────────────────────
     if (method === 'GET' && (pathname === '/api/admin/tables' || pathname === '/admin/tables')) {
-      const tables = await db.getTables();
-      return sendJson(res, 200, tables);
+      return sendJson(res, 200, await db.getTables());
     }
 
     const tableMatch = pathname.match(/^\/(api\/admin\/tables|admin\/tables)\/([^\/]+)$/);
     if (tableMatch && method === 'PUT') {
-      const tableId = tableMatch[2];
       const payload = await parseBody(req);
-      const updated = await db.updateTable(tableId, payload.name);
-      return sendJson(res, 200, updated);
+      return sendJson(res, 200, await db.updateTable(tableMatch[2], payload.name));
     }
 
     return sendJson(res, 404, { error: 'Not found' });
@@ -184,9 +177,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 if (require.main === module) {
-  server.listen(PORT, () => {
-    console.log(`Backend running at http://localhost:${PORT}`);
-  });
+  server.listen(PORT, () => console.log(`Backend running at http://localhost:${PORT}`));
 }
 
 module.exports = server;
