@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 
 const navItems = [
   { path: '/admin', label: 'Admin' },
@@ -7,6 +7,12 @@ const navItems = [
 ];
 
 export default function HeaderNav() {
+  const location = useLocation();
+
+  // Hide the admin header entirely on customer-facing table pages
+  const isTablePage = location.pathname.startsWith('/table/');
+  if (isTablePage) return null;
+
   return (
     <header className="sticky top-0 z-20 border-b border-white/70 bg-white/70 backdrop-blur-xl">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
