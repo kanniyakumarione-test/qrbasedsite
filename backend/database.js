@@ -1,17 +1,20 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+const usingServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('SUPABASE_URL or SUPABASE_ANON_KEY is missing in environment variables.');
+  console.error('SUPABASE_URL and (SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY) must be set in environment variables.');
+} else if (!usingServiceRole) {
+  console.warn('Using SUPABASE_ANON_KEY on backend; RLS policies may hide data. Prefer SUPABASE_SERVICE_ROLE_KEY on server.');
 }
 
 const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
 function checkClient() {
   if (!supabase) {
-    throw new Error('Supabase client not initialized. Please set SUPABASE_URL and SUPABASE_ANON_KEY in Vercel settings.');
+    throw new Error('Supabase client not initialized. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY) in Vercel settings.');
   }
 }
 
