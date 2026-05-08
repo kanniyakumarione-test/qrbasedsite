@@ -168,11 +168,21 @@ const server = http.createServer(async (req, res) => {
     if (method === 'GET' && (pathname === '/api/admin/tables' || pathname === '/admin/tables')) {
       return sendJson(res, 200, await db.getTables());
     }
+    if (method === 'POST' && (pathname === '/api/admin/tables' || pathname === '/admin/tables')) {
+      const payload = await parseBody(req);
+      return sendJson(res, 201, await db.addTable(payload));
+    }
 
     const tableMatch = pathname.match(/^\/(api\/admin\/tables|admin\/tables)\/([^\/]+)$/);
-    if (tableMatch && method === 'PUT') {
-      const payload = await parseBody(req);
-      return sendJson(res, 200, await db.updateTable(tableMatch[2], payload.name));
+    if (tableMatch) {
+      if (method === 'PUT') {
+        const payload = await parseBody(req);
+        return sendJson(res, 200, await db.updateTable(tableMatch[2], payload.name));
+      }
+      if (method === 'DELETE') {
+        await db.deleteTable(tableMatch[2]);
+        return sendJson(res, 200, { ok: true });
+      }
     }
 
     // ── Settings (Admin) ──────────────────────────────────────────────────────

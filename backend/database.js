@@ -107,6 +107,19 @@ async function updateTable(id, name) {
   return data;
 }
 
+async function addTable(table) {
+  checkClient();
+  const { data, error } = await supabase.from('tables').insert([table]).select().single();
+  if (error) throw error;
+  return data;
+}
+
+async function deleteTable(id) {
+  checkClient();
+  const { error } = await supabase.from('tables').delete().eq('id', id);
+  if (error) throw error;
+}
+
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 async function getSetting(id) {
@@ -126,6 +139,6 @@ async function updateSetting(id, value) {
 module.exports = {
   getMenu, getMenuItem, addMenuItem, updateMenuItem, deleteMenuItem,
   getOrders, getOrder, addOrder, updateOrderStatus, deleteOrder,
-  getTables, updateTable,
+  getTables, updateTable, addTable, deleteTable,
   getSetting, updateSetting
 };
