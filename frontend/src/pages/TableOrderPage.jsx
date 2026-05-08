@@ -7,9 +7,9 @@ function money(amount) {
 }
 
 const STATUS_LABEL = {
-  NEW: { text: '⏳ Received', color: 'bg-amber-100 text-amber-700 border border-amber-200' },
-  PREPARING: { text: '👨‍🍳 Preparing', color: 'bg-blue-100 text-blue-700 border border-blue-200' },
-  READY: { text: '✅ Ready!', color: 'bg-emerald-100 text-emerald-700 border border-emerald-200' }
+  NEW: { text: 'Ordered', color: 'bg-amber-500/10 text-amber-600 border-amber-200/50' },
+  PREPARING: { text: 'Chef Preparing', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200/50' },
+  READY: { text: 'Ready to Serve', color: 'bg-blue-500/10 text-blue-600 border-blue-200/50' }
 };
 
 export default function TableOrderPage() {
@@ -26,7 +26,6 @@ export default function TableOrderPage() {
   const [search, setSearch] = useState('');
   const [promo, setPromo] = useState('');
   
-  // Track acknowledged/dismissed orders in localStorage
   const [dismissedIds, setDismissedIds] = useState(() => {
     try {
       const saved = localStorage.getItem(`dismissed_${tableId}`);
@@ -38,8 +37,8 @@ export default function TableOrderPage() {
     localStorage.setItem(`dismissed_${tableId}`, JSON.stringify(dismissedIds));
   }, [dismissedIds, tableId]);
 
-  // Load menu
   useEffect(() => {
+    // Load Menu
     fetch(`${API_BASE_URL}/api/menu`)
       .then((r) => r.json())
       .then((data) => {
@@ -50,7 +49,7 @@ export default function TableOrderPage() {
         setLoading(false);
       })
       .catch(() => {
-        setErrorMsg('Could not load menu. Please try again.');
+        setErrorMsg('System connection error. Please refresh.');
         setLoading(false);
       });
 
@@ -61,20 +60,14 @@ export default function TableOrderPage() {
       .catch(() => {});
   }, []);
 
-  // Load and poll this table's orders
   useEffect(() => {
     function fetchOrders() {
       fetch(`${API_BASE_URL}/api/orders?tableId=${encodeURIComponent(tableId)}`)
         .then((r) => r.json())
         .then((data) => {
           if (Array.isArray(data)) {
-            // Cutoff: 24 hours
             const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-            const recent = data.filter((o) => {
-              const time = new Date(o.createdAt || o.createdat || 0).getTime();
-              return time > cutoff;
-            });
-            setMyOrders(recent);
+            setMyOrders(data.filter(o => new Date(o.createdAt).getTime() > cutoff));
           }
         })
         .catch(() => {});
@@ -84,15 +77,8 @@ export default function TableOrderPage() {
     return () => clearInterval(timer);
   }, [tableId]);
 
-  // Orders to display (exclude dismissed ones)
-  const visibleOrders = useMemo(() => {
-    return myOrders.filter(o => !dismissedIds.includes(o.id));
-  }, [myOrders, dismissedIds]);
-
-  // Check if any visible order is READY to trigger popup
-  const readyOrder = useMemo(() => {
-    return visibleOrders.find(o => o.status === 'READY');
-  }, [visibleOrders]);
+  const visibleOrders = useMemo(() => myOrders.filter(o => !dismissedIds.includes(o.id)), [myOrders, dismissedIds]);
+  const readyOrder = useMemo(() => visibleOrders.find(o => o.status === 'READY'), [visibleOrders]);
 
   const filteredMenu = useMemo(() => {
     if (!search) return menu;
@@ -109,19 +95,13 @@ export default function TableOrderPage() {
   }, [filteredMenu]);
 
   const cartItems = useMemo(() => {
-    return menu
-      .filter((item) => qty[item.id] > 0)
-      .map((item) => ({ ...item, quantity: qty[item.id], subtotal: item.price * qty[item.id] }));
+    return menu.filter(item => qty[item.id] > 0).map(item => ({ ...item, quantity: qty[item.id], subtotal: item.price * qty[item.id] }));
   }, [qty, menu]);
 
   const total = cartItems.reduce((sum, i) => sum + i.subtotal, 0);
 
   function changeQty(id, delta) {
-    setQty((prev) => ({ ...prev, [id]: Math.max(0, (prev[id] || 0) + delta) }));
-  }
-
-  function dismissOrder(id) {
-    setDismissedIds(prev => [...prev, id]);
+    setQty(prev => ({ ...prev, [id]: Math.max(0, (prev[id] || 0) + delta) }));
   }
 
   async function placeOrder() {
@@ -130,7 +110,7 @@ export default function TableOrderPage() {
     setErrorMsg('');
     setSuccessMsg('');
     try {
-      const items = cartItems.map((i) => ({ itemId: i.id, name: i.name, quantity: i.quantity, price: i.price }));
+      const items = cartItems.map(i => ({ itemId: i.id, name: i.name, quantity: i.quantity, price: i.price }));
       const response = await fetch(`${API_BASE_URL}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -139,13 +119,14 @@ export default function TableOrderPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Order failed');
 
-      setSuccessMsg('Order placed! Your food is being prepared. 🎉');
+      setSuccessMsg('Order placed successfully. Thank you!');
       const reset = {};
-      menu.forEach((item) => { reset[item.id] = 0; });
+      menu.forEach(item => { reset[item.id] = 0; });
       setQty(reset);
       setNote('');
+      setPin('');
     } catch (err) {
-      setErrorMsg(err.message || 'Something went wrong. Please try again.');
+      setErrorMsg(err.message || 'Something went wrong.');
     } finally {
       setPlacing(false);
     }
@@ -153,96 +134,95 @@ export default function TableOrderPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50">
+      <div className="flex min-h-screen items-center justify-center bg-[#fcfaf7]">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-amber-400 border-t-transparent"></div>
-          <p className="mt-4 font-semibold text-amber-700">Loading menu...</p>
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-emerald-900 border-t-transparent"></div>
+          <p className="mt-4 font-bold text-emerald-900 tracking-widest uppercase text-xs">Prabhu Hotel</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 pb-20">
+    <div className="min-h-screen bg-[#fcfaf7] pb-32">
       {/* Ready Notification Popup */}
       {readyOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm animate-in fade-in zoom-in duration-300 rounded-3xl bg-white p-8 text-center shadow-2xl">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-4xl">🥘</div>
-            <h2 className="mt-6 text-2xl font-extrabold text-slate-800">Your Order is Ready!</h2>
-            <p className="mt-2 text-slate-600 font-medium">Please collect your hot food from the counter.</p>
-            <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-left border border-slate-100">
-               <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Order Items</p>
-               <p className="mt-1 text-sm font-bold text-slate-700">
-                {readyOrder.items.map(i => `${i.name} x${i.quantity}`).join(', ')}
-               </p>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-md">
+          <div className="w-full max-w-sm glass-card rounded-[2rem] p-8 text-center shadow-2xl animate-slide-up">
+            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-emerald-50 text-5xl">🥂</div>
+            <h2 className="mt-6 text-3xl font-black text-emerald-900">It's Ready!</h2>
+            <p className="mt-2 text-slate-500 font-medium">Your delicacies are ready to be served.</p>
             <button
-              onClick={() => dismissOrder(readyOrder.id)}
-              className="mt-8 w-full rounded-2xl bg-emerald-500 py-4 text-lg font-extrabold text-white shadow-lg shadow-emerald-200 hover:bg-emerald-600 active:scale-95 transition-all"
+              onClick={() => setDismissedIds(prev => [...prev, readyOrder.id])}
+              className="mt-8 w-full btn-premium py-5 rounded-2xl"
             >
-              Got it, Done!
+              Excellent
             </button>
           </div>
         </div>
       )}
 
-      {/* Promo Banner */}
-      {promo && (
-        <div className="bg-amber-500 px-4 py-2 text-center text-xs font-bold text-white animate-pulse">
-          🔥 {promo}
-        </div>
-      )}
-
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white/90 shadow-sm backdrop-blur-md">
-        <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-4">
-          <div>
-            <h1 className="text-xl font-extrabold text-slate-800">🍽 Prabhu Hotel</h1>
-            <p className="text-xs text-slate-500">Table {tableId.toUpperCase()}</p>
-          </div>
-          {cartItems.length > 0 && (
-            <div className="rounded-full bg-amber-500 px-3 py-1 text-sm font-bold text-white shadow">
-              {cartItems.reduce((s, i) => s + i.quantity, 0)} items · {money(total)}
+      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-emerald-900/5">
+        <div className="mx-auto max-w-2xl px-6 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-black text-emerald-900 tracking-tight">PRABHU HOTEL</h1>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Table {tableId}</p>
+              </div>
             </div>
-          )}
-        </div>
-        
-        {/* Search Bar */}
-        <div className="px-4 pb-3">
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            {promo && (
+              <div className="hidden sm:block max-w-[200px] text-right">
+                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Today's Special</p>
+                <p className="text-xs font-medium text-slate-500 truncate">{promo}</p>
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-6 relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">🔍</span>
             <input 
               type="text"
-              placeholder="Search dishes (e.g. Biryani, Tea)..."
+              placeholder="Search our cuisine..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-2xl border border-slate-100 bg-slate-50 py-3 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              className="w-full rounded-2xl bg-slate-100/50 px-12 py-4 text-sm font-medium focus:bg-white focus:ring-4 focus:ring-emerald-900/5 outline-none transition-all"
             />
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
+      <div className="mx-auto max-w-2xl px-6 py-8 space-y-10">
+        
+        {/* Promotional Alert */}
+        {promo && (
+          <div className="bg-emerald-900 rounded-3xl p-6 text-white shadow-xl shadow-emerald-900/20 flex items-center gap-4">
+            <div className="text-4xl">✨</div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300">Exclusive Today</p>
+              <p className="text-sm font-bold leading-relaxed">{promo}</p>
+            </div>
+          </div>
+        )}
 
-        {/* Active Orders List */}
+        {/* Active Trackers */}
         {visibleOrders.length > 0 && (
-          <div>
-            <h2 className="mb-3 text-xs font-extrabold uppercase tracking-widest text-slate-500">Track Orders</h2>
-            <div className="space-y-2">
+          <div className="space-y-4">
+            <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-900/40">Current Orders</h2>
+            <div className="space-y-3">
               {visibleOrders.map((order) => {
                 const s = STATUS_LABEL[order.status] || STATUS_LABEL.NEW;
                 return (
-                  <div key={order.id} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm border border-white">
+                  <div key={order.id} className="glass-card rounded-2xl p-4 flex items-center justify-between border-white/50">
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-slate-700 truncate">
-                        {order.items.map((i) => `${i.name} ×${i.quantity}`).join(', ')}
+                      <p className="text-xs font-black text-emerald-900 truncate uppercase tracking-wide">
+                        {order.items.map(i => i.name).join(', ')}
                       </p>
-                      <p className="text-[10px] text-slate-400 font-medium">
-                        Order {order.id.split('-')[1]} · {money(order.totalAmount || order.totalamount)}
-                      </p>
+                      <p className="text-[9px] text-slate-400 font-bold mt-1">ID: {order.id.split('-')[1]} • {money(order.totalamount)}</p>
                     </div>
-                    <span className={`ml-3 shrink-0 rounded-full px-3 py-1 text-[10px] font-bold ${s.color}`}>{s.text}</span>
+                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter border ${s.color}`}>{s.text}</span>
                   </div>
                 );
               })}
@@ -250,58 +230,50 @@ export default function TableOrderPage() {
           </div>
         )}
 
-        {/* Success / Error */}
+        {/* Success/Error Messages */}
         {successMsg && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-center animate-in slide-in-from-top duration-500">
-            <p className="text-2xl">🎉</p>
-            <p className="mt-2 font-bold text-emerald-800">{successMsg}</p>
+          <div className="rounded-3xl bg-emerald-50 border border-emerald-100 p-6 text-center animate-slide-up">
+            <p className="text-3xl mb-2">💎</p>
+            <p className="text-sm font-black text-emerald-900 uppercase tracking-wide">{successMsg}</p>
           </div>
         )}
         {errorMsg && (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-center">
-            <p className="text-sm font-semibold text-rose-700">{errorMsg}</p>
+          <div className="rounded-3xl bg-rose-50 border border-rose-100 p-5 text-center">
+            <p className="text-xs font-bold text-rose-700 uppercase tracking-widest">{errorMsg}</p>
           </div>
         )}
 
-        {/* Menu */}
+        {/* Menu Sections */}
         {Object.entries(grouped).map(([category, items]) => (
-          <div key={category}>
-            <h2 className="mb-3 text-xs font-extrabold uppercase tracking-widest text-amber-600">{category}</h2>
-            <div className="space-y-3">
+          <div key={category} className="space-y-4">
+            <h2 className="text-[11px] font-black uppercase tracking-[0.3em] text-emerald-900/30 border-b border-emerald-900/5 pb-2">{category}</h2>
+            <div className="space-y-4">
               {items.map((item) => (
-                <div key={item.id} className="flex gap-3 rounded-2xl bg-white p-3 shadow-sm transition-all active:scale-[0.98]">
-                  {item.image_url && (
-                    <img 
-                      src={item.image_url} 
-                      alt={item.name} 
-                      className="h-20 w-20 shrink-0 rounded-xl object-cover"
-                    />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-1">
+                <div key={item.id} className="group glass-card rounded-[2rem] p-4 flex gap-5 transition-all hover:translate-x-1">
+                  <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-slate-100 shadow-sm">
+                    {item.image_url ? (
+                      <img src={item.image_url} alt={item.name} className="h-full w-full object-cover transition-transform group-hover:scale-110" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-3xl">🍲</div>
+                    )}
+                    {item.is_veg !== false && <div className="absolute top-2 right-2 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white shadow-sm"></div>}
+                    {item.is_veg === false && <div className="absolute top-2 right-2 h-3 w-3 rounded-full bg-rose-500 border-2 border-white shadow-sm"></div>}
+                  </div>
+                  <div className="flex-1 py-1">
+                    <div className="flex justify-between items-start">
                       <div>
-                        <div className="flex items-center gap-1.5">
-                          {item.available !== undefined && (
-                            <span className={`flex h-3 w-3 shrink-0 items-center justify-center rounded-[2px] border ${item.category?.toLowerCase().includes('non') || item.name?.toLowerCase().includes('chicken') || item.name?.toLowerCase().includes('meat') || item.name?.toLowerCase().includes('egg') || item.is_veg === false ? 'border-rose-600' : 'border-emerald-600'}`}>
-                              <span className={`h-1.5 w-1.5 rounded-full ${item.category?.toLowerCase().includes('non') || item.name?.toLowerCase().includes('chicken') || item.name?.toLowerCase().includes('meat') || item.name?.toLowerCase().includes('egg') || item.is_veg === false ? 'bg-rose-600' : 'bg-emerald-600'}`}></span>
-                            </span>
-                          )}
-                          <p className="truncate font-bold text-slate-800">{item.name}</p>
-                        </div>
-                        <p className="mt-1 text-base font-extrabold text-amber-600">{money(item.price)}</p>
+                        <h3 className="font-black text-emerald-900 text-lg leading-tight uppercase tracking-tight">{item.name}</h3>
+                        <p className="mt-1 font-black text-amber-600 text-xl">{money(item.price)}</p>
                       </div>
-                      
-                      <div className="flex shrink-0 items-center gap-2">
+                      <div className="flex items-center gap-2">
                         {qty[item.id] > 0 ? (
-                          <>
-                            <button onClick={() => changeQty(item.id, -1)} className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-lg font-bold text-amber-700 hover:bg-amber-200 transition-colors">−</button>
-                            <span className="w-6 text-center font-bold text-slate-800">{qty[item.id]}</span>
-                            <button onClick={() => changeQty(item.id, +1)} className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-lg font-bold text-white hover:bg-amber-600 transition-colors">+</button>
-                          </>
+                          <div className="flex items-center gap-3 bg-emerald-900 rounded-full p-1 shadow-lg">
+                            <button onClick={() => changeQty(item.id, -1)} className="h-8 w-8 rounded-full bg-white/10 text-white font-bold hover:bg-white/20">-</button>
+                            <span className="text-sm font-black text-white w-4 text-center">{qty[item.id]}</span>
+                            <button onClick={() => changeQty(item.id, +1)} className="h-8 w-8 rounded-full bg-white/20 text-white font-bold hover:bg-white/30">+</button>
+                          </div>
                         ) : (
-                          <button onClick={() => changeQty(item.id, +1)} className="rounded-full bg-amber-500 px-5 py-2 text-sm font-bold text-white shadow-md hover:bg-amber-600 transition-all active:scale-95">
-                            Add
-                          </button>
+                          <button onClick={() => changeQty(item.id, +1)} className="h-10 px-6 rounded-full bg-emerald-900 text-white text-xs font-black uppercase tracking-widest hover:bg-emerald-800 transition-all shadow-lg shadow-emerald-900/10">Add</button>
                         )}
                       </div>
                     </div>
@@ -311,55 +283,49 @@ export default function TableOrderPage() {
             </div>
           </div>
         ))}
+      </div>
 
-        {/* Summary Footer Panel */}
-        {cartItems.length > 0 && (
-          <div className="sticky bottom-4 z-20 rounded-3xl border border-white bg-white/90 p-5 shadow-2xl backdrop-blur-lg animate-in slide-in-from-bottom duration-500">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-extrabold text-slate-800">Total Order</h2>
-              <span className="text-2xl font-black text-amber-600">{money(total)}</span>
+      {/* Floating Cart Bar */}
+      {cartItems.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-xl px-6 z-50">
+          <div className="bg-emerald-900 rounded-[2.5rem] p-4 shadow-2xl shadow-emerald-900/40 border border-white/10 animate-slide-up">
+            <div className="flex items-center gap-4 mb-4 px-2">
+              <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center text-xl">🛒</div>
+              <div className="flex-1">
+                <p className="text-emerald-300 text-[10px] font-black uppercase tracking-widest">Your Selection</p>
+                <p className="text-white text-lg font-black">{cartItems.length} delicacies · {money(total)}</p>
+              </div>
             </div>
             
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Any special requests? (e.g. Less spicy)"
-              rows={2}
-              className="mb-4 w-full resize-none rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
-            />
-
-            <div className="mb-4 rounded-2xl bg-amber-50 p-4 border border-amber-100">
-              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-amber-600">Security PIN (Ask Staff)</p>
-              <input
-                type="text"
-                pattern="\d*"
-                inputMode="numeric"
-                maxLength={4}
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-                placeholder="Enter 4-digit PIN"
-                className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-center text-lg font-bold tracking-[0.5em] text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-              <p className="mt-2 text-[10px] text-amber-500 font-medium">To prevent fake orders, please enter the PIN shown at the hotel.</p>
+            <div className="space-y-3 px-1">
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  maxLength={4} 
+                  placeholder="Security PIN" 
+                  value={pin}
+                  onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
+                  className="w-1/3 rounded-2xl bg-white/10 px-4 py-4 text-center text-white font-black placeholder:text-white/30 outline-none focus:bg-white/20 transition-all"
+                />
+                <input 
+                  type="text" 
+                  placeholder="Notes for the Chef..." 
+                  value={note}
+                  onChange={e => setNote(e.target.value)}
+                  className="flex-1 rounded-2xl bg-white/10 px-6 py-4 text-sm font-bold text-white placeholder:text-white/30 outline-none focus:bg-white/20 transition-all"
+                />
+              </div>
+              <button 
+                onClick={placeOrder}
+                disabled={placing}
+                className="w-full bg-white text-emerald-900 py-5 rounded-[1.8rem] font-black text-lg uppercase tracking-widest hover:bg-amber-400 transition-all active:scale-[0.98] disabled:opacity-50"
+              >
+                {placing ? '⌛ Processing...' : '🚀 Finalize Order'}
+              </button>
             </div>
-
-            <button
-              onClick={placeOrder}
-              disabled={placing}
-              className="w-full rounded-2xl bg-amber-500 py-5 text-lg font-black text-white shadow-xl shadow-amber-200 hover:bg-amber-600 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {placing ? '⏳ Placing Order...' : `🚀 Place Order · ${money(total)}`}
-            </button>
           </div>
-        )}
-
-        {!menu.length && !loading && (
-          <div className="rounded-3xl bg-white p-12 text-center shadow-lg border border-white">
-            <p className="text-5xl">🥣</p>
-            <p className="mt-4 font-bold text-slate-400">Our menu is being updated.</p>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

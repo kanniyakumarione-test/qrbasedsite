@@ -3,6 +3,12 @@ import Card from './Card';
 import { money, statusStyle } from '../lib/format';
 import { API_BASE_URL } from '../api-config';
 
+const STATUS_STYLE_MAP = {
+  NEW: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Received' },
+  PREPARING: { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'In Kitchen' },
+  READY: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Ready' }
+};
+
 export default function OrdersView({ title, mode, buttonText, disabledStatusCheck }) {
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState('');
@@ -63,62 +69,84 @@ export default function OrdersView({ title, mode, buttonText, disabledStatusChec
   }
 
   return (
-    <Card>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl font-bold">{title}</h2>
-        <div className="flex items-center gap-2">
-          {error ? <span className="text-xs font-bold text-rose-600 animate-pulse">{error}</span> : null}
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600">Auto refresh: 7s</span>
+    <div className="space-y-8 animate-slide-up">
+      <div className="flex items-end justify-between px-2">
+        <div>
+          <h1 className="text-4xl font-black text-emerald-900 tracking-tighter uppercase">{title}</h1>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-1">Live Order Management</p>
+        </div>
+        <div className="text-right">
+          <div className="flex items-center gap-4 justify-end">
+            {error && <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest animate-pulse">{error}</span>}
+            <span className="bg-white/50 px-4 py-2 rounded-full text-[10px] font-black text-slate-500 uppercase tracking-widest border border-white shadow-sm">Auto refresh: 7s</span>
+          </div>
         </div>
       </div>
 
       {!orders.length && !error ? (
-        <p className="mt-4 rounded-xl bg-white px-3 py-2 text-sm text-slate-600">No orders right now.</p>
+        <div className="py-32 glass-card rounded-[3rem] text-center border-dashed border-slate-200">
+          <p className="text-5xl mb-6 opacity-20">🧊</p>
+          <p className="text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Kitchen is currently quiet</p>
+        </div>
       ) : null}
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {orders.map((order) => (
-          <div key={order.id} className="rounded-2xl border border-white/80 bg-white p-4 shadow-soft">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <p className="break-all text-sm font-extrabold text-slate-800">{order.id}</p>
-              <span className={`inline-block rounded-full px-2 py-1 text-xs font-semibold ${statusStyle(order.status)}`}>
-                {order.status}
-              </span>
-            </div>
-            <div className="mt-1 flex items-center justify-between">
-              <p className="text-xs font-semibold text-slate-500">Table {order.tableId}</p>
-              <p className="text-[10px] font-bold text-amber-600">
-                🕒 {Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000)}m ago
-              </p>
-            </div>
-            <p className="mt-3 break-words text-sm text-slate-700">
-              {Array.isArray(order.items) ? order.items.map((i) => `${i.name} x${i.quantity}`).join(', ') : 'No items'}
-            </p>
-            <p className="mt-2 text-sm font-semibold text-slate-700">Total: {money(order.totalAmount)}</p>
-            {order.note ? <p className="mt-1 text-xs text-slate-500">Note: {order.note}</p> : null}
+      <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
+        {orders.map((order) => {
+          const s = STATUS_STYLE_MAP[order.status] || { bg: 'bg-slate-100', text: 'text-slate-600', label: order.status };
+          return (
+            <div key={order.id} className="group glass-card rounded-[2.5rem] p-8 border-white/50 relative overflow-hidden transition-all hover:premium-shadow">
+              <div className="flex items-start justify-between gap-4 mb-6">
+                <div>
+                  <p className="text-[10px] font-black text-emerald-900/30 uppercase tracking-[0.2em]">Table Order</p>
+                  <h3 className="text-3xl font-black text-emerald-900 tracking-tighter uppercase">Table {order.tableid || order.tableId}</h3>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">
+                    🕒 {Math.floor((Date.now() - new Date(order.createdAt || order.createdat).getTime()) / 60000)}m ago
+                  </p>
+                  <span className={`inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${s.bg} ${s.text} border-current/20`}>
+                    {s.label}
+                  </span>
+                </div>
+              </div>
 
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={() => advance(order.id)}
-                disabled={disabledStatusCheck(order.status)}
-                className="btn-accent flex-1 disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                {buttonText(order.status)}
-              </button>
-              {/* Show Remove button for READY orders */}
-              {order.status === 'READY' && (
+              <div className="space-y-4 mb-8">
+                <p className="text-sm font-bold text-slate-700 leading-relaxed">
+                  {Array.isArray(order.items) ? order.items.map((i) => `${i.name} x${i.quantity}`).join(', ') : 'No items'}
+                </p>
+                {order.note && (
+                  <div className="bg-amber-500/5 rounded-2xl p-4 border border-amber-500/10">
+                    <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-1">Note for Chef</p>
+                    <p className="text-xs font-bold text-amber-700 italic">"{order.note}"</p>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-2">
+                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Order ID: {order.id.split('-')[1]}</p>
+                   <p className="text-lg font-black text-emerald-900">{money(order.totalAmount || order.totalamount)}</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-auto">
                 <button
-                  onClick={() => removeOrder(order.id)}
-                  className="rounded-xl bg-rose-100 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-200 transition-colors"
-                  title="Remove order"
+                  onClick={() => advance(order.id)}
+                  disabled={disabledStatusCheck(order.status)}
+                  className="flex-1 btn-premium py-4 text-xs tracking-[0.2em] uppercase disabled:opacity-30 disabled:grayscale"
                 >
-                  Remove
+                  {buttonText(order.status)}
                 </button>
-              )}
+                {order.status === 'READY' && (
+                  <button
+                    onClick={() => removeOrder(order.id)}
+                    className="px-6 rounded-2xl bg-rose-50 text-rose-500 text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-    </Card>
+    </div>
   );
 }

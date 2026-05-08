@@ -11,7 +11,7 @@ export default function TablesPage() {
     const baseUrl = window.location.origin;
     return tables.map((table) => ({
       ...table,
-      url: `${baseUrl}/table/${table.id}`
+      url: `${baseUrl}/order/${table.id}`
     }));
   }, [tables]);
 
@@ -23,131 +23,105 @@ export default function TablesPage() {
       if (Array.isArray(data)) setTables(data);
       setError('');
     } catch (err) {
-      setError('Could not connect to backend. Make sure your database is ready.');
+      setError('Could not connect to backend.');
     }
   }
 
-  useEffect(() => {
-    loadTables();
-  }, []);
-
-  async function updateTableName(id, newName) {
-    setStatus('Updating...');
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/tables/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName })
-      });
-      if (response.ok) {
-        setStatus('Saved.');
-        loadTables();
-      } else {
-        setStatus('Error.');
-      }
-    } catch (err) {
-      setStatus('Network Error.');
-    }
-  }
+  useEffect(() => { loadTables(); }, []);
 
   async function addTable() {
-    const name = prompt('Enter Table Name (e.g. Table 10):');
+    const name = prompt('Enter Table Name (e.g. Table 01):');
     if (!name) return;
-    setStatus('Adding table...');
+    setStatus('Adding...');
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/tables`, {
+      await fetch(`${API_BASE_URL}/api/admin/tables`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, id: `T${Date.now().toString().slice(-4)}` })
+        body: JSON.stringify({ name })
       });
-      if (response.ok) {
-        setStatus('Table added.');
-        loadTables();
-      }
-    } catch (err) {
-      setStatus('Failed to add.');
-    }
+      loadTables();
+      setStatus('Added.');
+    } catch (err) { setStatus('Failed.'); }
   }
 
   async function deleteTable(id) {
-    if (!window.confirm('Are you sure you want to delete this table? The QR code will stop working.')) return;
-    setStatus('Deleting...');
+    if (!window.confirm('Delete this luxury table stand?')) return;
+    setStatus('Removing...');
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/tables/${id}`, { method: 'DELETE' });
-      if (response.ok) {
-        setStatus('Deleted.');
-        loadTables();
-      }
-    } catch (err) {
-      setStatus('Failed to delete.');
-    }
+      await fetch(`${API_BASE_URL}/api/admin/tables/${id}`, { method: 'DELETE' });
+      loadTables();
+      setStatus('Removed.');
+    } catch (err) { setStatus('Failed.'); }
   }
 
   return (
-    <Card>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-10 pb-20 animate-slide-up">
+      <div className="flex items-end justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Table QR Codes</h2>
-          <p className="mt-1 text-sm text-slate-600">Scan these QR codes at the table to place orders.</p>
+          <h1 className="text-4xl font-black text-emerald-900 tracking-tighter uppercase">QR STANDS</h1>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-1">High-end Table Generators</p>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={addTable} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-emerald-700 transition-all active:scale-95">
-            + Add New Table
-          </button>
-          <div className="flex flex-col items-end text-xs font-bold">
-            {status ? <span className="text-emerald-600">{status}</span> : null}
-            {error ? <span className="text-rose-600">{error}</span> : null}
-          </div>
+          {status && <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{status}</span>}
+          <button onClick={addTable} className="btn-premium px-8 py-3 text-[10px] uppercase tracking-widest">+ New Stand</button>
         </div>
       </div>
 
-      {!tables.length && !error ? (
-        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm text-amber-800">No tables found. Please run the SQL setup in Supabase.</p>
-        </div>
-      ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {tableLinks.map((table) => (
-            <div key={table.id} className="group relative rounded-2xl border border-white/80 bg-white p-4 text-center shadow-soft flex flex-col items-center">
-              <button 
-                onClick={() => deleteTable(table.id)}
-                className="absolute top-2 right-2 p-2 text-slate-300 hover:text-rose-600 transition-colors opacity-0 group-hover:opacity-100"
-                title="Delete Table"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-              </button>
+      <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {tableLinks.map((table) => (
+          <div key={table.id} className="group relative">
+            {/* Premium Stand Design */}
+            <div className="bg-white rounded-[3rem] p-10 shadow-2xl border border-slate-50 transition-all hover:premium-shadow flex flex-col items-center">
+              <div className="text-center mb-8">
+                <h2 className="text-3xl font-black text-emerald-900 tracking-tighter uppercase">{table.name}</h2>
+                <div className="h-1 w-8 bg-amber-500 mx-auto mt-4 rounded-full"></div>
+              </div>
 
-              <input 
-                type="text"
-                defaultValue={table.name}
-                onBlur={(e) => {
-                  if (e.target.value !== table.name) {
-                    updateTableName(table.id, e.target.value);
-                  }
-                }}
-                className="w-full text-center font-bold bg-slate-50 border-none rounded-lg py-1 focus:ring-2 focus:ring-emerald-400 mb-2"
-              />
-              <div className="bg-white p-2 rounded-xl shadow-inner border border-slate-50">
+              <div className="mx-auto flex aspect-square w-full max-w-[180px] items-center justify-center rounded-[2.5rem] bg-emerald-50 p-6 shadow-inner relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/5 to-transparent"></div>
                 <img
-                  className="mx-auto h-32 w-32"
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(table.url)}`}
-                  alt={`QR ${table.name}`}
+                  className="relative z-10 h-full w-full grayscale-[50%] contrast-[120%] group-hover:grayscale-0 transition-all"
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(table.url)}`}
+                  alt={table.name}
                 />
               </div>
-              <p className="mt-3 text-[10px] text-slate-400 font-mono uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full">ID: {table.id}</p>
-              
-              <a 
-                href={table.url} 
-                target="_blank" 
-                rel="noreferrer"
-                className="mt-3 text-[10px] font-bold text-emerald-600 hover:underline"
-              >
-                Open Table Link ↗
-              </a>
+
+              <div className="mt-8 text-center space-y-2">
+                <p className="text-[10px] font-black text-emerald-900/40 uppercase tracking-[0.3em]">Scan for Fine Dining</p>
+                <div className="h-4"></div>
+                <p className="text-[8px] font-bold text-slate-300 break-all truncate max-w-[150px]">{table.url}</p>
+              </div>
+
+              <div className="mt-10 pt-6 border-t border-slate-50 w-full flex justify-between items-center px-2">
+                <button 
+                  onClick={() => window.open(table.url, '_blank')}
+                  className="text-[9px] font-black text-emerald-600 uppercase tracking-widest hover:text-emerald-800"
+                >
+                  Preview
+                </button>
+                <button 
+                  onClick={() => deleteTable(table.id)}
+                  className="text-[9px] font-black text-rose-300 uppercase tracking-widest hover:text-rose-500"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
-          ))}
+
+            {/* Premium Seal */}
+            <div className="absolute -top-3 -right-3 bg-emerald-900 text-white text-[8px] font-black px-4 py-2 rounded-full shadow-lg rotate-6 border border-white/20">
+              PRABHU EXCLUSIVE
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {tables.length === 0 && (
+        <div className="text-center py-32 glass-card rounded-[3rem] border-dashed border-slate-200">
+          <p className="text-5xl mb-6 opacity-30">🏺</p>
+          <p className="text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Ready to generate luxury stands</p>
         </div>
       )}
-    </Card>
+    </div>
   );
 }
