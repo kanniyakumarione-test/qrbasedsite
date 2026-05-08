@@ -30,6 +30,10 @@ export default function TableOrderPage() {
   const [myOrders, setMyOrders] = useState([]);
   const [pin, setPin] = useState('');
   const [search, setSearch] = useState('');
+  const [playedIds, setPlayedIds] = useState([]);
+  const [promo, setPromo] = useState('');
+  
+  const [showFloating, setShowFloating] = useState(true);
   
   const [dismissedIds, setDismissedIds] = useState(() => {
     try {
@@ -41,6 +45,15 @@ export default function TableOrderPage() {
   useEffect(() => {
     localStorage.setItem(`dismissed_${tableId}`, JSON.stringify(dismissedIds));
   }, [dismissedIds, tableId]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const isAtBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 100;
+      setShowFloating(!isAtBottom);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/menu`)
@@ -56,6 +69,11 @@ export default function TableOrderPage() {
         setErrorMsg('Connection error.');
         setLoading(false);
       });
+
+    fetch(`${API_BASE_URL}/api/admin/settings/promo`)
+      .then(r => r.json())
+      .then(data => setPromo(data.value || ''))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -77,6 +95,14 @@ export default function TableOrderPage() {
 
   const visibleOrders = useMemo(() => myOrders.filter(o => !dismissedIds.includes(o.id)), [myOrders, dismissedIds]);
   const readyOrder = useMemo(() => visibleOrders.find(o => o.status === 'READY'), [visibleOrders]);
+
+  useEffect(() => {
+    if (readyOrder && !playedIds.includes(readyOrder.id)) {
+      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+      audio.play().catch(() => {});
+      setPlayedIds(prev => [...prev, readyOrder.id]);
+    }
+  }, [readyOrder, playedIds]);
 
   const filteredMenu = useMemo(() => {
     if (!search) return menu;
@@ -104,6 +130,7 @@ export default function TableOrderPage() {
 
   async function placeOrder() {
     if (!cartItems.length) return;
+    if (!pin) { setErrorMsg('Enter PIN'); return; }
     setPlacing(true);
     setErrorMsg('');
     setSuccessMsg('');
@@ -116,6 +143,10 @@ export default function TableOrderPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Order failed');
+
+      // Play Success Sound
+      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+      audio.play().catch(() => {});
 
       setSuccessMsg('Your order is being prepared!');
       const reset = {};
@@ -141,25 +172,46 @@ export default function TableOrderPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 pb-40 animate-fade-in">
-      {/* Ready Alert Modal */}
+      {/* Ready Notification Bar */}
       {readyOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-6">
-          <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-sm text-center shadow-2xl animate-in zoom-in duration-300">
-            <div className="text-5xl mb-4">🍱</div>
-            <h2 className="text-2xl font-extrabold text-slate-800">Hot & Ready!</h2>
-            <p className="text-slate-500 mt-2 font-medium">Your order is ready to be served.</p>
-            <button
-              onClick={() => setDismissedIds(prev => [...prev, readyOrder.id])}
-              className="mt-8 w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
-            >
-              Enjoy My Food
-            </button>
+        <div className="fixed top-6 left-0 right-0 z-[60] px-6 animate-slide-down">
+          <div className="max-w-md mx-auto bg-emerald-600 text-white rounded-2xl p-4 shadow-2xl flex items-center justify-between border border-emerald-500/50">
+             <div className="flex items-center gap-3">
+               <span className="text-2xl">🍱</span>
+               <div>
+                 <p className="text-xs font-bold uppercase tracking-widest opacity-80">Order Ready!</p>
+                 <p className="text-sm font-black">Collect your delicious food</p>
+               </div>
+             </div>
+             <button 
+               onClick={() => setDismissedIds(prev => [...prev, readyOrder.id])}
+               className="bg-white/20 hover:bg-white/30 p-2 rounded-xl transition-colors"
+             >
+               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Promo Banner */}
+      {promo && (
+        <div className="bg-indigo-600 overflow-hidden py-2 -mx-4 mb-4 shadow-sm border-y border-indigo-500">
+          <div className="whitespace-nowrap animate-marquee flex items-center gap-12">
+            <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] flex items-center gap-2 italic">
+              <span className="bg-white text-indigo-600 px-1.5 py-0.5 rounded italic">HOT DEAL</span> {promo}
+            </span>
+            <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] flex items-center gap-2 italic">
+              <span className="bg-white text-indigo-600 px-1.5 py-0.5 rounded italic">HOT DEAL</span> {promo}
+            </span>
+            <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] flex items-center gap-2 italic">
+              <span className="bg-white text-indigo-600 px-1.5 py-0.5 rounded italic">HOT DEAL</span> {promo}
+            </span>
           </div>
         </div>
       )}
 
       {/* Header */}
-      <div className="py-8 space-y-4">
+      <div className="py-4 space-y-4">
         <div className="flex justify-between items-end">
           <div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Prabhu Hotel</h1>
@@ -185,21 +237,29 @@ export default function TableOrderPage() {
 
       {/* Order Status Tracker */}
       {visibleOrders.length > 0 && (
-        <div className="mb-10 space-y-3">
-          <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">Track My Orders</h2>
-          {visibleOrders.map(order => (
-            <div key={order.id} className="bg-white border border-slate-50 rounded-2xl p-4 flex items-center justify-between shadow-sm">
-              <div className="flex-1 min-w-0 pr-4">
-                <p className="text-xs font-bold text-slate-700 truncate">
-                  {order.items.map(i => i.name).join(', ')}
-                </p>
-                <p className="text-[10px] font-medium text-slate-400 mt-1">ID: #{order.id.split('-')[1]} • {money(order.totalamount)}</p>
+        <div className="mb-10 animate-fade-in">
+          <div className="flex items-center justify-between px-1 mb-3">
+             <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Live Order Status</h2>
+             <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-ping"></span>
+          </div>
+          <div className="space-y-3">
+            {visibleOrders.map(order => (
+              <div key={order.id} className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between shadow-sm hover:border-indigo-100 transition-colors">
+                <div className="flex-1 min-w-0 pr-4">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Order ID: #{order.id.split('-')[1]}</p>
+                  <p className="text-xs font-bold text-slate-700 truncate leading-tight">
+                    {order.items.map(i => i.name).join(', ')}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border ${STATUS_BADGE[order.status]}`}>
+                    {STATUS_TEXT[order.status]}
+                  </span>
+                  <p className="text-[9px] font-bold text-indigo-600">{money(order.totalamount)}</p>
+                </div>
               </div>
-              <span className={`px-3 py-1.5 rounded-xl text-[10px] font-bold border ${STATUS_BADGE[order.status]}`}>
-                {STATUS_TEXT[order.status]}
-              </span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
@@ -298,10 +358,10 @@ export default function TableOrderPage() {
         </div>
       )}
 
-      {/* Slim Floating Status Bar (Always visible when items added) */}
-      {cartItems.length > 0 && (
+      {/* Slim Floating Status Bar (Always visible when items added, but hides at very bottom) */}
+      {cartItems.length > 0 && showFloating && (
         <div className="fixed bottom-6 left-0 right-0 z-40 px-6 animate-fade-in pointer-events-none">
-          <div className="max-w-md mx-auto bg-slate-900/90 backdrop-blur-md text-white rounded-2xl p-3 flex items-center justify-between shadow-2xl border border-white/10 pointer-events-auto">
+          <div className="max-w-md mx-auto bg-slate-900/90 backdrop-blur-md text-white rounded-2xl p-3 flex items-center justify-between shadow-2xl border border-white/10 pointer-events-auto print:hidden">
              <div className="flex items-center gap-3 ml-2">
                <span className="h-2 w-2 rounded-full bg-indigo-400 animate-pulse"></span>
                <p className="text-sm font-bold">{cartItems.length} Items • {money(total)}</p>
@@ -318,13 +378,19 @@ export default function TableOrderPage() {
 
       {/* Status Messages */}
       {successMsg && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-emerald-500 text-white px-8 py-4 rounded-full font-black shadow-xl animate-in slide-in-from-top-10 duration-500">
-          ✨ {successMsg}
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-xs animate-slide-down">
+          <div className="bg-slate-900 text-white px-6 py-4 rounded-2xl font-bold shadow-2xl flex items-center gap-3 border border-white/10">
+            <span className="text-xl">✨</span>
+            <p className="text-xs uppercase tracking-widest">{successMsg}</p>
+          </div>
         </div>
       )}
       {errorMsg && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-rose-500 text-white px-8 py-4 rounded-full font-black shadow-xl animate-in slide-in-from-top-10 duration-500">
-          ❌ {errorMsg}
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-xs animate-slide-down">
+          <div className="bg-rose-600 text-white px-6 py-4 rounded-2xl font-bold shadow-2xl flex items-center gap-3 border border-rose-500">
+            <span className="text-xl">⚠️</span>
+            <p className="text-xs uppercase tracking-widest">{errorMsg}</p>
+          </div>
         </div>
       )}
     </div>
