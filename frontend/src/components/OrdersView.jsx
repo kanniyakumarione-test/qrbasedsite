@@ -4,9 +4,9 @@ import { money, statusStyle } from '../lib/format';
 import { API_BASE_URL } from '../api-config';
 
 const STATUS_STYLE_MAP = {
-  NEW: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Received' },
-  PREPARING: { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'In Kitchen' },
-  READY: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Ready' }
+  NEW: { bg: 'bg-indigo-50', text: 'text-indigo-600', label: 'Received' },
+  PREPARING: { bg: 'bg-amber-50', text: 'text-amber-600', label: 'Preparing' },
+  READY: { bg: 'bg-emerald-50', text: 'text-emerald-600', label: 'Ready' }
 };
 
 export default function OrdersView({ title, mode, buttonText, disabledStatusCheck }) {
@@ -19,22 +19,20 @@ export default function OrdersView({ title, mode, buttonText, disabledStatusChec
       if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
       const data = await res.json();
       
-      // Sound alert logic for Kitchen
       if (mode === 'kitchen' && data.length > orders.length) {
         const hasNew = data.some(newOrder => 
           newOrder.status === 'NEW' && !orders.find(o => o.id === newOrder.id)
         );
         if (hasNew) {
           const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-          audio.play().catch(() => {}); // Browser might block auto-play
+          audio.play().catch(() => {});
         }
       }
 
       setOrders(data);
       setError('');
     } catch (err) {
-      console.error('Fetch error:', err);
-      setError('Could not connect to backend. Checking again in 7s...');
+      setError('Connection error. Retrying...');
     }
   }
 
@@ -52,61 +50,56 @@ export default function OrdersView({ title, mode, buttonText, disabledStatusChec
         body: JSON.stringify({ mode })
       });
       fetchData();
-    } catch (err) {
-      alert('Failed to update status. Check your connection.');
-    }
+    } catch (err) { alert('Error updating status.'); }
   }
 
   async function removeOrder(id) {
-    const ok = window.confirm('Remove this order from the kitchen view?');
-    if (!ok) return;
+    if (!window.confirm('Delete this order?')) return;
     try {
       await fetch(`${API_BASE_URL}/api/orders/${id}`, { method: 'DELETE' });
       fetchData();
-    } catch (err) {
-      alert('Failed to remove order.');
-    }
+    } catch (err) { alert('Error removing.'); }
   }
 
   return (
-    <div className="space-y-8 animate-slide-up">
-      <div className="flex items-end justify-between px-2">
+    <div className="space-y-8 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 px-2">
         <div>
-          <h1 className="text-4xl font-black text-emerald-900 tracking-tighter uppercase">{title}</h1>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-1">Live Order Management</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight uppercase">{title}</h1>
+          <p className="text-xs text-slate-400 mt-1 font-medium tracking-widest uppercase">Live Kitchen Stream</p>
         </div>
-        <div className="text-right">
-          <div className="flex items-center gap-4 justify-end">
-            {error && <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest animate-pulse">{error}</span>}
-            <span className="bg-white/50 px-4 py-2 rounded-full text-[10px] font-black text-slate-500 uppercase tracking-widest border border-white shadow-sm">Auto refresh: 7s</span>
+        <div className="flex items-center gap-3">
+          {error && <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest">{error}</span>}
+          <div className="bg-slate-50 border border-slate-100 px-4 py-2 rounded-xl text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+            Refresh: 7s
           </div>
         </div>
       </div>
 
       {!orders.length && !error ? (
-        <div className="py-32 glass-card rounded-[3rem] text-center border-dashed border-slate-200">
-          <p className="text-5xl mb-6 opacity-20">🧊</p>
-          <p className="text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Kitchen is currently quiet</p>
+        <div className="py-24 bg-slate-50 rounded-[2.5rem] text-center border-2 border-dashed border-slate-100">
+          <p className="text-4xl mb-4 grayscale opacity-30">🍳</p>
+          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">All caught up!</p>
         </div>
       ) : null}
 
-      <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {orders.map((order) => {
-          const s = STATUS_STYLE_MAP[order.status] || { bg: 'bg-slate-100', text: 'text-slate-600', label: order.status };
+          const s = STATUS_STYLE_MAP[order.status] || { bg: 'bg-slate-50', text: 'text-slate-500', label: order.status };
           return (
-            <div key={order.id} className="group glass-card rounded-[2.5rem] p-8 border-white/50 relative overflow-hidden transition-all hover:premium-shadow">
+            <div key={order.id} className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm transition-all hover:shadow-xl">
               <div className="flex items-start justify-between gap-4 mb-6">
                 <div>
-                  <p className="text-[10px] font-black text-emerald-900/30 uppercase tracking-[0.2em]">Table Order</p>
-                  <h3 className="text-3xl font-black text-emerald-900 tracking-tighter uppercase">Table {order.tableid || order.tableId}</h3>
+                  <h3 className="text-2xl font-bold text-slate-900">Table {order.tableid || order.tableId}</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">ID: #{order.id.split('-')[1]}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">
-                    🕒 {Math.floor((Date.now() - new Date(order.createdAt || order.createdat).getTime()) / 60000)}m ago
-                  </p>
-                  <span className={`inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${s.bg} ${s.text} border-current/20`}>
+                  <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest border ${s.bg} ${s.text} border-current/10`}>
                     {s.label}
                   </span>
+                  <p className="text-[10px] font-bold text-indigo-500 mt-2">
+                    🕒 {Math.floor((Date.now() - new Date(order.createdAt || order.createdat).getTime()) / 60000)}m ago
+                  </p>
                 </div>
               </div>
 
@@ -115,31 +108,30 @@ export default function OrdersView({ title, mode, buttonText, disabledStatusChec
                   {Array.isArray(order.items) ? order.items.map((i) => `${i.name} x${i.quantity}`).join(', ') : 'No items'}
                 </p>
                 {order.note && (
-                  <div className="bg-amber-500/5 rounded-2xl p-4 border border-amber-500/10">
-                    <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-1">Note for Chef</p>
-                    <p className="text-xs font-bold text-amber-700 italic">"{order.note}"</p>
+                  <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
+                    <p className="text-[9px] font-bold text-indigo-600 uppercase tracking-widest mb-1">Chef Note</p>
+                    <p className="text-xs font-bold text-indigo-800 italic">"{order.note}"</p>
                   </div>
                 )}
-                <div className="flex justify-between items-center pt-2">
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Order ID: {order.id.split('-')[1]}</p>
-                   <p className="text-lg font-black text-emerald-900">{money(order.totalAmount || order.totalamount)}</p>
+                <div className="flex justify-between items-center pt-2 border-t border-slate-50">
+                   <p className="text-lg font-bold text-slate-900">{money(order.totalAmount || order.totalamount)}</p>
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-auto">
+              <div className="flex gap-2">
                 <button
                   onClick={() => advance(order.id)}
                   disabled={disabledStatusCheck(order.status)}
-                  className="flex-1 btn-premium py-4 text-xs tracking-[0.2em] uppercase disabled:opacity-30 disabled:grayscale"
+                  className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-100 disabled:opacity-30 disabled:shadow-none transition-all"
                 >
                   {buttonText(order.status)}
                 </button>
                 {order.status === 'READY' && (
                   <button
                     onClick={() => removeOrder(order.id)}
-                    className="px-6 rounded-2xl bg-rose-50 text-rose-500 text-[10px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all"
+                    className="bg-rose-50 text-rose-500 px-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-rose-100 transition-all"
                   >
-                    Remove
+                    Clear
                   </button>
                 )}
               </div>

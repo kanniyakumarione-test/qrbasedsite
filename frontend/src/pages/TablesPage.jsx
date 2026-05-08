@@ -52,54 +52,54 @@ export default function TablesPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="max-w-[1200px] mx-auto px-6 py-2 space-y-6 animate-fade-in">
+      <div className="flex items-center justify-between border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Table QR Codes</h1>
-          <p className="text-sm text-slate-500 mt-1">Generate and manage permanent QR codes for your tables.</p>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Table QR Management</h1>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">Generate permanent scan-to-order codes</p>
         </div>
         <div className="flex items-center gap-3">
-          {status && <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">{status}</span>}
-          <button onClick={addTable} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 shadow-lg shadow-indigo-200">
-            + New Table
+          {status && <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full uppercase tracking-widest">{status}</span>}
+          <button onClick={addTable} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all active:scale-95">
+            + Add Table
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         {tableLinks.map((table) => (
-          <div key={table.id} className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm hover:shadow-xl transition-all group">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-slate-800">{table.name}</h3>
+          <div key={table.id} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:border-indigo-200 transition-all group">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-slate-900">{table.name}</h3>
               <button onClick={() => deleteTable(table.id)} className="text-slate-300 hover:text-rose-500 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
               </button>
             </div>
 
-            <div className="bg-slate-50 rounded-2xl p-4 mb-6">
+            <div className="bg-slate-50 rounded-xl p-3 mb-4">
               <img
-                className="mx-auto h-48 w-48 mix-blend-multiply"
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(table.url)}`}
+                className="mx-auto h-32 w-32 mix-blend-multiply group-hover:scale-105 transition-transform"
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(table.url)}`}
                 alt={table.name}
               />
             </div>
 
-            <div className="space-y-4">
-              <div className="bg-slate-50 px-4 py-2 rounded-xl">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center truncate">{table.url}</p>
+            <div className="space-y-3">
+              <div className="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 overflow-hidden">
+                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest text-center truncate">{table.url}</p>
               </div>
               <div className="flex gap-2">
                 <button 
                   onClick={() => window.open(table.url, '_blank')}
-                  className="flex-1 bg-white border border-slate-200 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all"
+                  className="flex-1 bg-white border border-slate-200 py-2 rounded-lg text-[9px] font-bold text-slate-600 hover:bg-slate-50 transition-all"
                 >
-                  Test Link
+                  Test
                 </button>
                 <button 
                   onClick={() => window.print()}
-                  className="flex-1 bg-indigo-50 py-2.5 rounded-xl text-xs font-bold text-indigo-600 hover:bg-indigo-100 transition-all"
+                  className="flex-1 bg-indigo-50 border border-indigo-100 py-2 rounded-lg text-[9px] font-bold text-indigo-600 hover:bg-indigo-100 transition-all"
                 >
-                  Print QR
+                  Print
                 </button>
               </div>
             </div>
