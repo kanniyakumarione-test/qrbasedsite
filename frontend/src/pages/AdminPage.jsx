@@ -15,6 +15,16 @@ export default function AdminPage() {
   const [editingId, setEditingId] = useState('');
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [dailyPin, setDailyPin] = useState('');
+  const [pinStatus, setPinStatus] = useState('');
+
+  async function loadPin() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/settings/daily_pin`);
+      const data = await response.json();
+      setDailyPin(data.value || '');
+    } catch (err) {}
+  }
 
   async function loadMenu() {
     try {
@@ -30,6 +40,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     loadMenu();
+    loadPin();
   }, []);
 
   function resetForm() {
@@ -95,6 +106,25 @@ export default function AdminPage() {
     }
   }
 
+  async function updatePin(e) {
+    e.preventDefault();
+    setPinStatus('Saving PIN...');
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/settings/daily_pin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: dailyPin })
+      });
+      if (response.ok) {
+        setPinStatus('PIN updated successfully.');
+      } else {
+        setPinStatus('Failed to update PIN.');
+      }
+    } catch (err) {
+      setPinStatus('Error updating PIN.');
+    }
+  }
+
   return (
     <div className="grid gap-4">
       <Card>
@@ -103,6 +133,23 @@ export default function AdminPage() {
           {error ? <span className="text-sm font-bold text-rose-600">{error}</span> : null}
         </div>
         <p className="mt-1 text-sm text-slate-600">Add, edit, or remove items from your digital menu.</p>
+      </Card>
+
+      <Card>
+        <h3 className="text-xl font-bold">Security Settings (Daily PIN)</h3>
+        <p className="text-sm text-slate-600">Enter a 4-digit PIN that customers must use to place orders. Change this daily to prevent home orders.</p>
+        <form onSubmit={updatePin} className="mt-4 flex flex-wrap items-center gap-3">
+          <input
+            type="text"
+            maxLength={4}
+            value={dailyPin}
+            onChange={(e) => setDailyPin(e.target.value.replace(/\D/g, ''))}
+            placeholder="e.g. 1234"
+            className="input-base w-32 text-center text-xl font-bold tracking-widest"
+          />
+          <button type="submit" className="btn-accent">Save Security PIN</button>
+          {pinStatus && <span className="text-sm font-semibold text-emerald-700">{pinStatus}</span>}
+        </form>
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">

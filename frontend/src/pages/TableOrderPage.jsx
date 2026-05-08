@@ -22,6 +22,7 @@ export default function TableOrderPage() {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [myOrders, setMyOrders] = useState([]);
+  const [pin, setPin] = useState('');
   
   // Track acknowledged/dismissed orders in localStorage
   const [dismissedIds, setDismissedIds] = useState(() => {
@@ -119,7 +120,7 @@ export default function TableOrderPage() {
       const response = await fetch(`${API_BASE_URL}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tableId, items, note, totalAmount: total })
+        body: JSON.stringify({ tableId, items, note, totalAmount: total, pin })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Order failed');
@@ -272,6 +273,21 @@ export default function TableOrderPage() {
               rows={2}
               className="mb-4 w-full resize-none rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all"
             />
+
+            <div className="mb-4 rounded-2xl bg-amber-50 p-4 border border-amber-100">
+              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-amber-600">Security PIN (Ask Staff)</p>
+              <input
+                type="text"
+                pattern="\d*"
+                inputMode="numeric"
+                maxLength={4}
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="Enter 4-digit PIN"
+                className="w-full rounded-xl border border-amber-200 bg-white px-4 py-3 text-center text-lg font-bold tracking-[0.5em] text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+              <p className="mt-2 text-[10px] text-amber-500 font-medium">To prevent fake orders, please enter the PIN shown at the hotel.</p>
+            </div>
 
             <button
               onClick={placeOrder}

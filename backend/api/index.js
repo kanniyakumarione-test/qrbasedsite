@@ -124,6 +124,13 @@ const server = http.createServer(async (req, res) => {
 
     if (method === 'POST' && (pathname === '/api/orders' || pathname === '/orders')) {
       const payload = await parseBody(req);
+      
+      // 🔒 PIN Verification
+      const serverPin = await db.getSetting('daily_pin');
+      if (serverPin && serverPin !== payload.pin) {
+        return sendJson(res, 403, { error: 'Invalid Security PIN. Please check the PIN at the hotel.' });
+      }
+
       const now = new Date().toISOString();
       const order = {
         id: `ORD-${Date.now()}`,
@@ -166,6 +173,17 @@ const server = http.createServer(async (req, res) => {
     if (tableMatch && method === 'PUT') {
       const payload = await parseBody(req);
       return sendJson(res, 200, await db.updateTable(tableMatch[2], payload.name));
+    }
+
+    // ── Settings (Admin) ──────────────────────────────────────────────────────
+    if (method === 'GET' && pathname === '/api/admin/settings/daily_pin') {
+      const pin = await db.getSetting('daily_pin');
+      return sendJson(res, 200, { value: pin || '' });
+    }
+    if (method === 'POST' && pathname === '/api/admin/settings/daily_pin') {
+      const payload = await parseBody(req);
+      await db.updateSetting('daily_pin', payload.value);
+      return sendJson(res, 200, { ok: true });
     }
 
     return sendJson(res, 404, { error: 'Not found' });
