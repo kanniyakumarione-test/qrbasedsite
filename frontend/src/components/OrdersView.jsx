@@ -12,6 +12,18 @@ export default function OrdersView({ title, mode, buttonText, disabledStatusChec
       const res = await fetch(`${API_BASE_URL}/api/orders?mode=${mode}`);
       if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
       const data = await res.json();
+      
+      // Sound alert logic for Kitchen
+      if (mode === 'kitchen' && data.length > orders.length) {
+        const hasNew = data.some(newOrder => 
+          newOrder.status === 'NEW' && !orders.find(o => o.id === newOrder.id)
+        );
+        if (hasNew) {
+          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+          audio.play().catch(() => {}); // Browser might block auto-play
+        }
+      }
+
       setOrders(data);
       setError('');
     } catch (err) {
@@ -73,7 +85,12 @@ export default function OrdersView({ title, mode, buttonText, disabledStatusChec
                 {order.status}
               </span>
             </div>
-            <p className="mt-1 text-xs font-semibold text-slate-500">Table {order.tableId}</p>
+            <div className="mt-1 flex items-center justify-between">
+              <p className="text-xs font-semibold text-slate-500">Table {order.tableId}</p>
+              <p className="text-[10px] font-bold text-amber-600">
+                🕒 {Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000)}m ago
+              </p>
+            </div>
             <p className="mt-3 break-words text-sm text-slate-700">
               {Array.isArray(order.items) ? order.items.map((i) => `${i.name} x${i.quantity}`).join(', ') : 'No items'}
             </p>

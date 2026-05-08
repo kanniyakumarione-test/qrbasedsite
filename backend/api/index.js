@@ -195,6 +195,20 @@ const server = http.createServer(async (req, res) => {
       await db.updateSetting('daily_pin', payload.value);
       return sendJson(res, 200, { ok: true });
     }
+    if (method === 'GET' && pathname === '/api/admin/settings/promo') {
+      const promo = await db.getSetting('promo_banner');
+      return sendJson(res, 200, { value: promo || '' });
+    }
+    if (method === 'POST' && pathname === '/api/admin/settings/promo') {
+      const payload = await parseBody(req);
+      await db.updateSetting('promo_banner', payload.value);
+      return sendJson(res, 200, { ok: true });
+    }
+
+    // ── Analytics (Admin) ─────────────────────────────────────────────────────
+    if (method === 'GET' && pathname === '/api/admin/analytics') {
+      return sendJson(res, 200, await db.getAnalytics());
+    }
 
     return sendJson(res, 404, { error: 'Not found' });
 

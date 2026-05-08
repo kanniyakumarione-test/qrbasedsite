@@ -65,6 +65,13 @@ async function getOrders(filters = {}) {
   return data || [];
 }
 
+async function getAnalytics() {
+  checkClient();
+  const { data, error } = await supabase.from('orders').select('items, totalamount, createdat');
+  if (error) throw error;
+  return data || [];
+}
+
 async function getOrder(id) {
   checkClient();
   const { data, error } = await supabase.from('orders').select('*').eq('id', id).single();
@@ -138,7 +145,7 @@ async function updateSetting(id, value) {
 
 module.exports = {
   getMenu, getMenuItem, addMenuItem, updateMenuItem, deleteMenuItem,
-  getOrders, getOrder, addOrder, updateOrderStatus, deleteOrder,
+  getOrders, getOrder, addOrder, updateOrderStatus, deleteOrder, getAnalytics,
   getTables, updateTable, addTable, deleteTable,
   getSetting, updateSetting
 };

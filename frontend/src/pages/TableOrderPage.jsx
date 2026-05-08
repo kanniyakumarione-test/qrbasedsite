@@ -23,6 +23,8 @@ export default function TableOrderPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [myOrders, setMyOrders] = useState([]);
   const [pin, setPin] = useState('');
+  const [search, setSearch] = useState('');
+  const [promo, setPromo] = useState('');
   
   // Track acknowledged/dismissed orders in localStorage
   const [dismissedIds, setDismissedIds] = useState(() => {
@@ -51,6 +53,12 @@ export default function TableOrderPage() {
         setErrorMsg('Could not load menu. Please try again.');
         setLoading(false);
       });
+
+    // Load Promo
+    fetch(`${API_BASE_URL}/api/admin/settings/promo`)
+      .then(r => r.json())
+      .then(data => setPromo(data.value || ''))
+      .catch(() => {});
   }, []);
 
   // Load and poll this table's orders
@@ -86,13 +94,19 @@ export default function TableOrderPage() {
     return visibleOrders.find(o => o.status === 'READY');
   }, [visibleOrders]);
 
+  const filteredMenu = useMemo(() => {
+    if (!search) return menu;
+    const s = search.toLowerCase();
+    return menu.filter(m => m.name.toLowerCase().includes(s) || m.category.toLowerCase().includes(s));
+  }, [menu, search]);
+
   const grouped = useMemo(() => {
-    return menu.reduce((acc, item) => {
+    return filteredMenu.reduce((acc, item) => {
       if (!acc[item.category]) acc[item.category] = [];
       acc[item.category].push(item);
       return acc;
     }, {});
-  }, [menu]);
+  }, [filteredMenu]);
 
   const cartItems = useMemo(() => {
     return menu
@@ -173,6 +187,13 @@ export default function TableOrderPage() {
         </div>
       )}
 
+      {/* Promo Banner */}
+      {promo && (
+        <div className="bg-amber-500 px-4 py-2 text-center text-xs font-bold text-white animate-pulse">
+          🔥 {promo}
+        </div>
+      )}
+
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white/90 shadow-sm backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-4">
@@ -185,6 +206,20 @@ export default function TableOrderPage() {
               {cartItems.reduce((s, i) => s + i.quantity, 0)} items · {money(total)}
             </div>
           )}
+        </div>
+        
+        {/* Search Bar */}
+        <div className="px-4 pb-3">
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            <input 
+              type="text"
+              placeholder="Search dishes (e.g. Biryani, Tea)..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-2xl border border-slate-100 bg-slate-50 py-3 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+            />
+          </div>
         </div>
       </div>
 
@@ -234,23 +269,42 @@ export default function TableOrderPage() {
             <h2 className="mb-3 text-xs font-extrabold uppercase tracking-widest text-amber-600">{category}</h2>
             <div className="space-y-3">
               {items.map((item) => (
-                <div key={item.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm transition-all active:scale-[0.98]">
+                <div key={item.id} className="flex gap-3 rounded-2xl bg-white p-3 shadow-sm transition-all active:scale-[0.98]">
+                  {item.image_url && (
+                    <img 
+                      src={item.image_url} 
+                      alt={item.name} 
+                      className="h-20 w-20 shrink-0 rounded-xl object-cover"
+                    />
+                  )}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-bold text-slate-800">{item.name}</p>
-                    <p className="text-base font-extrabold text-amber-600">{money(item.price)}</p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {qty[item.id] > 0 ? (
-                      <>
-                        <button onClick={() => changeQty(item.id, -1)} className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-lg font-bold text-amber-700 hover:bg-amber-200 transition-colors">−</button>
-                        <span className="w-6 text-center font-bold text-slate-800">{qty[item.id]}</span>
-                        <button onClick={() => changeQty(item.id, +1)} className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-lg font-bold text-white hover:bg-amber-600 transition-colors">+</button>
-                      </>
-                    ) : (
-                      <button onClick={() => changeQty(item.id, +1)} className="rounded-full bg-amber-500 px-5 py-2 text-sm font-bold text-white shadow-md hover:bg-amber-600 transition-all active:scale-95">
-                        Add
-                      </button>
-                    )}
+                    <div className="flex items-start justify-between gap-1">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          {item.available !== undefined && (
+                            <span className={`flex h-3 w-3 shrink-0 items-center justify-center rounded-[2px] border ${item.category?.toLowerCase().includes('non') || item.name?.toLowerCase().includes('chicken') || item.name?.toLowerCase().includes('meat') || item.name?.toLowerCase().includes('egg') || item.is_veg === false ? 'border-rose-600' : 'border-emerald-600'}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${item.category?.toLowerCase().includes('non') || item.name?.toLowerCase().includes('chicken') || item.name?.toLowerCase().includes('meat') || item.name?.toLowerCase().includes('egg') || item.is_veg === false ? 'bg-rose-600' : 'bg-emerald-600'}`}></span>
+                            </span>
+                          )}
+                          <p className="truncate font-bold text-slate-800">{item.name}</p>
+                        </div>
+                        <p className="mt-1 text-base font-extrabold text-amber-600">{money(item.price)}</p>
+                      </div>
+                      
+                      <div className="flex shrink-0 items-center gap-2">
+                        {qty[item.id] > 0 ? (
+                          <>
+                            <button onClick={() => changeQty(item.id, -1)} className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-lg font-bold text-amber-700 hover:bg-amber-200 transition-colors">−</button>
+                            <span className="w-6 text-center font-bold text-slate-800">{qty[item.id]}</span>
+                            <button onClick={() => changeQty(item.id, +1)} className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-lg font-bold text-white hover:bg-amber-600 transition-colors">+</button>
+                          </>
+                        ) : (
+                          <button onClick={() => changeQty(item.id, +1)} className="rounded-full bg-amber-500 px-5 py-2 text-sm font-bold text-white shadow-md hover:bg-amber-600 transition-all active:scale-95">
+                            Add
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
