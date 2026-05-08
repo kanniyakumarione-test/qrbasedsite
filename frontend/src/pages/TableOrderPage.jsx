@@ -299,7 +299,7 @@ export default function TableOrderPage() {
       )}
 
       {/* Slim Floating Status Bar (Always visible when items added) */}
-      {cartItems.length > 0 && !orderStatus && (
+      {cartItems.length > 0 && (
         <div className="fixed bottom-6 left-0 right-0 z-40 px-6 animate-fade-in pointer-events-none">
           <div className="max-w-md mx-auto bg-slate-900/90 backdrop-blur-md text-white rounded-2xl p-3 flex items-center justify-between shadow-2xl border border-white/10 pointer-events-auto">
              <div className="flex items-center gap-3 ml-2">
