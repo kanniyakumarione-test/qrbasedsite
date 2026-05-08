@@ -213,30 +213,30 @@ export default function TableOrderPage() {
             </h2>
             <div className="grid gap-4">
               {items.map(item => (
-                <div key={item.id} className="bg-white rounded-3xl p-4 border border-slate-50 shadow-sm flex gap-4 transition-all active:scale-[0.98]">
-                  <div className="h-24 w-24 shrink-0 rounded-2xl bg-slate-50 overflow-hidden relative border border-slate-100">
+                <div key={item.id} className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm flex gap-3 sm:gap-4 transition-all active:scale-[0.98]">
+                  <div className="h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-xl bg-slate-50 overflow-hidden relative border border-slate-50">
                     {item.image_url ? (
                       <img src={item.image_url} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-3xl">🍲</div>
+                      <div className="flex h-full w-full items-center justify-center text-2xl sm:text-3xl">🍲</div>
                     )}
-                    <div className={`absolute top-2 left-2 h-3.5 w-3.5 rounded-full border-2 border-white ${item.is_veg !== false ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
+                    <div className={`absolute top-1.5 left-1.5 h-3 w-3 rounded-full border-2 border-white ${item.is_veg !== false ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
                   </div>
-                  <div className="flex-1 py-1 flex flex-col justify-between">
+                  <div className="flex-1 py-0.5 flex flex-col justify-between">
                     <div>
-                      <h3 className="font-bold text-slate-800 text-lg leading-tight">{item.name}</h3>
-                      <p className="text-indigo-600 font-extrabold text-lg mt-1">{money(item.price)}</p>
+                      <h3 className="font-bold text-slate-800 text-base sm:text-lg leading-tight">{item.name}</h3>
+                      <p className="text-indigo-600 font-black text-base sm:text-lg mt-0.5">{money(item.price)}</p>
                     </div>
                     <div className="flex justify-end">
                       {qty[item.id] > 0 ? (
-                        <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-100 rounded-xl p-1 shadow-sm">
-                          <button onClick={() => changeQty(item.id, -1)} className="h-8 w-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-indigo-600 font-bold">-</button>
-                          <span className="text-sm font-black text-indigo-700 w-4 text-center">{qty[item.id]}</span>
-                          <button onClick={() => changeQty(item.id, +1)} className="h-8 w-8 rounded-lg bg-indigo-600 shadow-sm flex items-center justify-center text-white font-bold">+</button>
+                        <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-lg p-1 shadow-sm">
+                          <button onClick={() => changeQty(item.id, -1)} className="h-7 w-7 rounded-md bg-white shadow-sm flex items-center justify-center text-indigo-600 font-bold">-</button>
+                          <span className="text-xs font-black text-indigo-700 w-4 text-center">{qty[item.id]}</span>
+                          <button onClick={() => changeQty(item.id, +1)} className="h-7 w-7 rounded-md bg-indigo-600 shadow-sm flex items-center justify-center text-white font-bold">+</button>
                         </div>
                       ) : (
-                        <button onClick={() => changeQty(item.id, +1)} className="bg-white border border-slate-200 px-6 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all shadow-sm">
-                          Add Item
+                        <button onClick={() => changeQty(item.id, +1)} className="bg-white border border-slate-200 px-4 py-1.5 rounded-lg text-[10px] font-bold text-slate-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all shadow-sm uppercase tracking-widest">
+                          Add
                         </button>
                       )}
                     </div>
@@ -248,49 +248,70 @@ export default function TableOrderPage() {
         ))}
       </div>
 
-      {/* Floating Cart Checkout */}
+      {/* Checkout Section at the Bottom */}
       {cartItems.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 p-6 z-40 bg-gradient-to-t from-white via-white/95 to-transparent">
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-indigo-900 rounded-[2.5rem] p-5 shadow-2xl shadow-indigo-900/30 border border-white/10 animate-in slide-in-from-bottom-10 duration-500">
-              <div className="flex items-center justify-between mb-5 px-3">
-                <div>
-                  <p className="text-indigo-300 text-[10px] font-black uppercase tracking-widest">Cart Summary</p>
-                  <p className="text-white text-xl font-extrabold">{cartItems.length} Dishes • {money(total)}</p>
-                </div>
-                <div className="text-right">
-                   <p className="text-indigo-300 text-[10px] font-black uppercase tracking-widest">Table</p>
-                   <p className="text-white font-black">{tableId.toUpperCase()}</p>
-                </div>
+        <div className="mt-20 border-t border-slate-100 pt-10 pb-32 animate-fade-in">
+          <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900">Finalize Order</h2>
+                <p className="text-sm font-medium text-slate-400 mt-1">Check your items and enter details</p>
               </div>
-
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    maxLength={4} 
-                    placeholder="PIN" 
-                    value={pin}
-                    onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
-                    className="w-20 rounded-2xl bg-white/10 px-4 py-4 text-center text-white font-bold placeholder:text-white/30 focus:bg-white/20 outline-none border border-white/5"
-                  />
-                  <input 
-                    type="text" 
-                    placeholder="Cooking notes... (Optional)" 
-                    value={note}
-                    onChange={e => setNote(e.target.value)}
-                    className="flex-1 rounded-2xl bg-white/10 px-6 py-4 text-sm font-bold text-white placeholder:text-white/30 focus:bg-white/20 outline-none border border-white/5"
-                  />
-                </div>
-                <button 
-                  onClick={placeOrder}
-                  disabled={placing}
-                  className="w-full bg-white text-indigo-900 py-5 rounded-2xl font-black text-lg shadow-xl hover:bg-indigo-50 transition-all active:scale-[0.98] disabled:opacity-50"
-                >
-                  {placing ? 'Sending Order...' : '🚀 Place Order Now'}
-                </button>
+              <div className="text-right">
+                <p className="text-3xl font-black text-indigo-600">{money(total)}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{cartItems.length} Items Total</p>
               </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-4">Daily PIN</label>
+                <input 
+                  type="text" 
+                  maxLength={4} 
+                  placeholder="0000" 
+                  value={pin}
+                  onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
+                  className="w-full bg-slate-50 border border-slate-100 px-6 py-4 rounded-2xl font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-500/5 transition-all"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-4">Special Instructions</label>
+                <input 
+                  type="text" 
+                  placeholder="Extra spicy, no onions, etc." 
+                  value={note}
+                  onChange={e => setNote(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-100 px-6 py-4 rounded-2xl font-bold text-slate-900 outline-none focus:ring-4 focus:ring-indigo-500/5 transition-all"
+                />
+              </div>
+            </div>
+
+            <button 
+              onClick={placeOrder}
+              disabled={placing}
+              className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-[0.98] disabled:opacity-50"
+            >
+              {placing ? 'Sending Order...' : '🚀 Place Order Now'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Slim Floating Status Bar (Always visible when items added) */}
+      {cartItems.length > 0 && !orderStatus && (
+        <div className="fixed bottom-6 left-0 right-0 z-40 px-6 animate-fade-in pointer-events-none">
+          <div className="max-w-md mx-auto bg-slate-900/90 backdrop-blur-md text-white rounded-2xl p-3 flex items-center justify-between shadow-2xl border border-white/10 pointer-events-auto">
+             <div className="flex items-center gap-3 ml-2">
+               <span className="h-2 w-2 rounded-full bg-indigo-400 animate-pulse"></span>
+               <p className="text-sm font-bold">{cartItems.length} Items • {money(total)}</p>
+             </div>
+             <button 
+               onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
+               className="bg-indigo-600 px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all active:scale-95"
+             >
+               Checkout
+             </button>
           </div>
         </div>
       )}
